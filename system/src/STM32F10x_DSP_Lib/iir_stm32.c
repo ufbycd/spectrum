@@ -48,7 +48,7 @@
   */
 void iir_biquad_stm32(uint16_t *y, uint16_t *x, int16_t *IIRCoeff, uint16_t ny)
 {
-  uint32_t i;
+	uint16_t i;
   uint32_t w1_2 = 0, w1_1 = 0, w1;
   uint32_t w2_2 = 0, w2_1 = 0, w2;
   uint32_t w3_2 = 0, w3_1 = 0, w3;
