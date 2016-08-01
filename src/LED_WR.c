@@ -23,13 +23,13 @@ void (*SDA_RGB)(uchar);
 //}_ol_;
 _ol_ olSet[7]=
 {
-    SDA_RS,
-    SDA_GS,
-    SDA_BS,
-	SDA_RGS,
-    SDA_GBS,
-    SDA_BRS,
-	SDA_BGRS,
+    {SDA_RS},
+    {SDA_GS},
+    {SDA_BS},
+	{SDA_RGS},
+    {SDA_GBS},
+    {SDA_BRS},
+	{SDA_BGRS},
    
 };
 /*******************下半屏颜色控制************************/
@@ -48,13 +48,13 @@ void (*SDA_RGB1)(uchar);
 //}_oll_;
 _oll_ ollSet[7] =
 {
-    SDA_R,
-    SDA_G,
-    SDA_B,
-	SDA_RG,
-    SDA_GB,
-    SDA_BR,
-	SDA_BGR,
+    {SDA_R},
+    {SDA_G},
+    {SDA_B},
+	{SDA_RG},
+    {SDA_GB},
+    {SDA_BR},
+	{SDA_BGR},
    
 };
 /**************************************************/

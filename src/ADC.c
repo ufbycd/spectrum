@@ -73,19 +73,19 @@ void ADC_Configuration(void)
   /* Check the end of ADC1 reset calibration register */
   while(ADC_GetResetCalibrationStatus(ADC1));
 
-  /* Start ADC1 calibaration */
+  /* Start ADC1 calibration */
   ADC_StartCalibration(ADC1);
   /* Check the end of ADC1 calibration */
   while(ADC_GetCalibrationStatus(ADC1));
      
   /* Start ADC1 Software Conversion */                       
-	ADC_SoftwareStartConvCmd(ADC1,ENABLE);/* Start ADC1 Software Conversion     */ //使能转换开始
+  ADC_SoftwareStartConvCmd(ADC1, ENABLE); // Start ADC1 Software Conversion   使能转换开始
 
 }
 
 u16 TestAdc(void)
 {
-	u16 adc;
+	u16 adc = 0;
 	if(ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC)==SET)
 	{
 		ADC_ClearFlag(ADC1, ADC_FLAG_EOC); 
