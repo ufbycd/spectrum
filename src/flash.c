@@ -1,5 +1,5 @@
-#include "STM32Lib\\stm32f10x.h"
-#include "hal.h" 
+#include <hal.h>
+#include "stm32f10x.h"
 #define                PAGE_ADDR                                (0x08000000 + 60 * 1024)
 
 

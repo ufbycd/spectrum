@@ -1,4 +1,4 @@
-#include "STM32Lib\\stm32f10x.h"
+#include "stm32f10x.h"
 
 
 void IWDG_Configuration(void)

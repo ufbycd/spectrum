@@ -1,4 +1,4 @@
-#include "hal.h"
+#include <hal.h>
 
 uchar menu=0;
 uchar ADJ;                    //按键变量

@@ -1,7 +1,7 @@
 
-#include "hal.h"
-//#include <intrins.h>
 #include <stdlib.h>
+#include "hal.h"
+
 //#include "STM32Lib\\stm32f10x.h"
 u8 hh,ss;
 u8 week;
@@ -58,7 +58,7 @@ _oll_ ollSet[7] =
    
 };
 /**************************************************/
-void LEDinit_OFF()//清屏
+void LEDinit_OFF(void)//清屏
 {  
  uchar x;
  for(x=0;x<64;x++)//把R,G缓冲区全部数据清0

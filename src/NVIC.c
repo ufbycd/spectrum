@@ -1,4 +1,4 @@
-#include "STM32Lib\\stm32f10x.h" 
+#include "stm32f10x.h"
 //设置所有的中断允许
 //NVIC_PreemptionPriority:抢占优先级
 //NVIC_SubPriority       :响应优先级

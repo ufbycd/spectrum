@@ -1,14 +1,20 @@
 #ifndef HAL_H
 #define HAL_H
-#include "STM32Lib\\stm32f10x.h"
+
+#include "stm32f10x.h"
 #include "delay.h"
+
+#ifndef _Bool
+#	define _Bool uint8_t
+#endif
+
 #define uchar unsigned char
 #define uint unsigned int
 #define NPT 256            /* NPT = No of FFT point*/
 //硬件初始化
 extern void  ChipHalInit(void);
 extern void  ChipOutHalInit(void);
-extern u16 TestAdc(void);
+u16 TestAdc(void);
 
  //串口
 extern void USART1_Putc(u8 c);
