@@ -1,12 +1,9 @@
 #ifndef HAL_H
 #define HAL_H
 
+#include <stdbool.h>
 #include "stm32f10x.h"
 #include "delay.h"
-
-#ifndef _Bool
-#	define _Bool uint8_t
-#endif
 
 #define uchar unsigned char
 #define uint unsigned int

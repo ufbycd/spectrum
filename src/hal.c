@@ -9,7 +9,6 @@
 
 //各个内部硬件模块的配置函数
 extern void GPIO_Configuration(void);			//GPIO
-extern void RCC_Configuration(void);			//RCC
 extern void TIM_Configuration(void);			//TIM
 extern void NVIC_Configuration(void);			//NVIC
 extern void IWDG_Configuration(void);			//IWDG
@@ -22,9 +21,6 @@ extern void ADC_Configuration(void);
 *******************************/
 void  ChipHalInit(void)
 {
-	//初始化时钟源
-	RCC_Configuration();
-	
 	//初始化中断源
 	NVIC_Configuration();
 
