@@ -150,11 +150,6 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
-					<fileInfo id="ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.130851928.699322974" name="stm32f10x_sdio.c" rcbsApplicability="disable" resourcePath="system/src/stm32f1-stdperiph/stm32f10x_sdio.c" toolsToInvoke="ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.151398599.1482725506">
-						<tool id="ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.151398599.1482725506" name="Cross ARM C Compiler" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.151398599">
-							<inputType id="ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.input.1471771462" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.input"/>
-						</tool>
-					</fileInfo>
 					<sourceEntries>
 						<entry excluding="INTRINS.H" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
 						<entry excluding="src/stm32f1-stdperiph/stm32f10x_sdio.c|src/stm32f1-stdperiph/stm32f10x_dbgmcu.c|src/stm32f1-stdperiph/stm32f10x_i2c.c|src/stm32f1-stdperiph/stm32f10x_dac.c|src/stm32f1-stdperiph/stm32f10x_can.c|src/stm32f1-stdperiph/stm32f10x_spi.c|src/stm32f1-stdperiph/stm32f10x_pwr.c|src/stm32f1-stdperiph/stm32f10x_exti.c|src/stm32f1-stdperiph/stm32f10x_rtc.c|src/stm32f1-stdperiph/stm32f10x_wwdg.c|src/stm32f1-stdperiph/stm32f10x_dma.c|src/stm32f1-stdperiph/stm32f10x_bkp.c|src/stm32f1-stdperiph/stm32f10x_crc.c|src/stm32f1-stdperiph/stm32f10x_fsmc.c|src/stm32f1-stdperiph/stm32f10x_cec.c|src/STM32F10x_DSP_Lib/asm/arm/|src/STM32F10x_DSP_Lib/asm/gcc/PID_stm32.s|src/STM32F10x_DSP_Lib/asm/iar/|src/STM32F10x_DSP_Lib/PID_C_stm32.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="system"/>
@@ -304,9 +299,6 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
-					<fileInfo id="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.653121649.1451574286" name="stm32f10x_sdio.c" rcbsApplicability="disable" resourcePath="system/src/stm32f1-stdperiph/stm32f10x_sdio.c" toolsToInvoke="ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.39018620.1769281847">
-						<tool id="ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.39018620.1769281847" name="Cross ARM C Compiler" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.39018620"/>
-					</fileInfo>
 					<sourceEntries>
 						<entry excluding="INTRINS.H" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
 						<entry excluding="src/stm32f1-stdperiph/stm32f10x_sdio.c|src/stm32f1-stdperiph/stm32f10x_dbgmcu.c|src/stm32f1-stdperiph/stm32f10x_i2c.c|src/stm32f1-stdperiph/stm32f10x_dac.c|src/stm32f1-stdperiph/stm32f10x_can.c|src/stm32f1-stdperiph/stm32f10x_spi.c|src/stm32f1-stdperiph/stm32f10x_pwr.c|src/stm32f1-stdperiph/stm32f10x_exti.c|src/stm32f1-stdperiph/stm32f10x_rtc.c|src/stm32f1-stdperiph/stm32f10x_wwdg.c|src/stm32f1-stdperiph/stm32f10x_dma.c|src/stm32f1-stdperiph/stm32f10x_bkp.c|src/stm32f1-stdperiph/stm32f10x_crc.c|src/stm32f1-stdperiph/stm32f10x_fsmc.c|src/stm32f1-stdperiph/stm32f10x_cec.c|src/STM32F10x_DSP_Lib/asm/arm/|src/STM32F10x_DSP_Lib/asm/gcc/PID_stm32.S|src/STM32F10x_DSP_Lib/asm/iar/|src/STM32F10x_DSP_Lib/PID_C_stm32.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="system"/>
@@ -317,7 +309,7 @@
 		</cconfiguration>
 	</storageModule>
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-		<project id="spectrum.ilg.gnuarmeclipse.managedbuild.cross.target.elf.243171969" name="Executable" projectType="ilg.gnuarmeclipse.managedbuild.cross.target.elf"/>
+		<project id="spectrum.ilg.gnuarmeclipse.managedbuild.cross.target.elf.1031656872" name="Executable" projectType="ilg.gnuarmeclipse.managedbuild.cross.target.elf"/>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="refreshScope" versionNumber="2">
@@ -328,6 +320,7 @@
 			<resource resourceType="PROJECT" workspacePath="/spectrum"/>
 		</configuration>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 	<storageModule moduleId="scannerConfiguration">
 		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.130851928;ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.130851928.;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.38935174;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.1107268464">
@@ -336,12 +329,17 @@
 		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.130851928;ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.130851928.;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.151398599;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.input.181279441">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
-		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.653121649;ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.653121649.;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.6565698;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.894212720">
+		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.663779090;ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.663779090.;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.849321003;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.400463440">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
-		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.653121649;ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.653121649.;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.39018620;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.input.1719164760">
+		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.255415102;ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.255415102.;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.1155576219;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.353321560">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.663779090;ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.663779090.;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.1367098697;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.input.1994535576">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.255415102;ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.255415102.;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.1366955793;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.input.86694865">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
 	</storageModule>
-	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 </cproject>

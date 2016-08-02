@@ -14,47 +14,46 @@
 //NVIC_SubPriority和NVIC_PreemptionPriority的原则是,数值越小,越优先
 void NVIC_Configuration(void)
 {
-	NVIC_InitTypeDef NVIC_InitStructure;
-	
-	/* Configure one bit for preemption priority */
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+    NVIC_InitTypeDef NVIC_InitStructure;
 
-	/* Timer1中断*/
+    /* Configure one bit for preemption priority */
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+
+    /* Timer1中断*/
 //	NVIC_InitStructure.NVIC_IRQChannel = TIM1_UP_IRQn;    //更新事件;
 //	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
 //	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
 //	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 //	NVIC_Init(&NVIC_InitStructure);
+    /* Timer2中断*/
+    NVIC_InitStructure.NVIC_IRQChannel = TIM2_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&NVIC_InitStructure);
 
-	/* Timer2中断*/
-	NVIC_InitStructure.NVIC_IRQChannel = TIM2_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
-	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&NVIC_InitStructure);
+    /* Timer3中断*/
+    NVIC_InitStructure.NVIC_IRQChannel = TIM3_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&NVIC_InitStructure);
 
-		/* Timer3中断*/
-	NVIC_InitStructure.NVIC_IRQChannel = TIM3_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
-	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&NVIC_InitStructure);
-
-	  /* Enable the EXTI0 Interrupt */
+    /* Enable the EXTI0 Interrupt */
 //  NVIC_InitStructure.NVIC_IRQChannel = EXTI0_IRQn;
 //  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
 //  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
 //  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 //  NVIC_Init(&NVIC_InitStructure);	
-	/*UART2中断*/
-/*	NVIC_InitStructure.NVIC_IRQChannel = USART2_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
-	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&NVIC_InitStructure);	*/
+    /*UART2中断*/
+    /*	NVIC_InitStructure.NVIC_IRQChannel = USART2_IRQn;
+     NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+     NVIC_Init(&NVIC_InitStructure);	*/
 }
 /***********************************************************************************
-************************************************************************************
-*******************DIY视界出品   http://59tiaoba.taobao.com*************************
-************************************************************************************
-*************************************************************************************/
+ ************************************************************************************
+ *******************DIY视界出品   http://59tiaoba.taobao.com*************************
+ ************************************************************************************
+ *************************************************************************************/
