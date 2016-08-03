@@ -1,76 +1,195 @@
-/**********************2015-10-24**************************************
- **功能:实现DSP库的FFT 驱动16X32 RGB彩屏点阵进行频谱显示
- 256点FFT运算
- **DIY视界出品   http://59tiaoba.taobao.com
- **作者:Fucp
+/*
+ * main.c
+ *
+ *  Created on: 2013-6-1
+ *      Author: chenss
+ */
 
- //标准08接口屏 定义
- GND     A     ABCD行扫描
- GND     B
- GND     C
- OE      D	  OE 使能端
- R1      G1	  上半屏红色、绿色
- R2      G2	  下半屏红色  绿色
- GND	    STCP	  锁存
- GND     SHCP	 时钟移位
- *************************************************************/
+//#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include "main.h"
+#include "task.h"
+#include "semphr.h"
+//#include "test.h"
 
-#include "hal.h"
-#include "stm32_dsp.h"
-uchar switc = 0; //
-uchar windw = 0; //
-uchar Miao_color = 1;  //
-u16 i;
-uchar read_tem_bit = 1;
+void usart2_init();
+static void prvSetupHardware(void);
+
+static xSemaphoreHandle _mx_print;
+
+void uart_putchar(char c)
+{
+	while ((USART2->SR & USART_FLAG_TC) == (uint16_t)RESET);
+	USART2->DR = (c & (uint16_t)0x01FF);
+}
+
+static void _printfSaveInit(void)
+{
+	_mx_print = xSemaphoreCreateMutex();
+}
+
+int printSafe(const char *fmt, ...)
+{
+	int i;
+	va_list args;
+
+	va_start(args, fmt);
+
+	xSemaphoreTake(_mx_print, 1000);
+	i = vprintf(fmt, args);
+	xSemaphoreGive(_mx_print);
+
+	va_end(args);
+
+	return i;
+}
+
+void vApplicationStackOverflowHook( xTaskHandle xTask, signed portCHAR *pcTaskName )
+{
+	DEBUG_MSG("ERR: Stack Overflow at Task: %s!\n", pcTaskName);
+}
+
+void vApplicationMallocFailedHook( void )
+{
+	DEBUG_MSG("ERR: Malloc Failed !\n");
+}
+
+void vTaskDelayMs(portTickType xTicksToDelay)
+{
+	vTaskDelay(xTicksToDelay / portTICK_RATE_MS);
+}
+
+void vTaskA( void *pvParameters)
+{
+	int i = 0;
+	const char *name = pvParameters;
+
+
+	while(1)
+	{
+		MDEBUG_COLOR(GREEN, "%s: %d\n", name, i++);
+		vTaskDelayMs(400);
+	}
+}
 
 int main(void)
 {
+	prvSetupHardware();
+	usart2_init();
+	_printfSaveInit();
 
-	ChipHalInit();			//片内硬件初始化
-	ChipOutHalInit();		//片外硬件初始化
-	delay_init(72);
-	//GPIO_Write(GPIOB, 0xFFFF); 
-	color = MemReadByte(0);		//读取设置
-	if (color > 5)
-		color = 0;
-	SDA_RGB = olSet[color].proc; //变色
-	SDA_RGB1 = ollSet[color].procc; //变色
+	DEBUG_MSG("\nSystem Start.\n");
 
-	color_top = MemReadByte(0x400); //读取设置
-	if (color_top > 6)
-		color_top = 0;
-	SDA_RGB_top = olSet[color_top].proc; //变色
-	SDA_RGB1_top = ollSet[color_top].procc; //变色
-	// USART1_Putc(0x88);
-	IWDG_Enable();			//启动看门狗,自动就会使能内部的40K
-	LEDinit_OFF();			//清屏
-	Key1_ON;
-	Key2_ON;
-	OE = 1;
-	OE = 1;
-	for (;;)
-	{
-		KEY_scan();		//--------------------------------按键扫描
-		KEY_Manage();  //--------------------------按键执行
-		IWDG_ReloadCounter();	//喂狗
+//	testPrint();
+//	while(1);
 
-		/*************************************************/
-		if (adc_over == 1)
-		{
-			adc_over = 0;
+	xTaskCreate(vTaskA, "TaskA", 128, "TaskA", 5, NULL);
+	xTaskCreate(vTaskA, "TaskB", 128, "TaskB", 5, NULL);
+	xTaskCreate(vTaskA, "TaskC", 128, "TaskC", 5, NULL);
 
-			cr4_fft_256_stm32(FFT_OUT, FFT_IN, NPT);
-			FFT();
-			TIM2->CR1 |= 1 << 0;   //使能定时器2
+	/* Start the scheduler. */
+	vTaskStartScheduler();
 
-		}
+	/* Will only get here if there was not enough heap space to create the
+	 idle task. */
+	DEBUG_MSG("OS Failed!\n");
+	exit(-1);
 
-		/***********************************************/
-	}
+	return EXIT_FAILURE;
 }
-/***********************************************************************************
- ************************************************************************************
- *******************DIY视界出品   http://59tiaoba.taobao.com*************************
- ************************************************************************************
- *************************************************************************************/
+
+static void prvSetupHardware(void)
+{
+	/* Set the Vector Table base address at 0x08000000 */
+	NVIC_SetVectorTable( NVIC_VectTab_FLASH, 0x0 );
+
+	NVIC_PriorityGroupConfig( NVIC_PriorityGroup_4 );
+
+	/* Configure HCLK clock as SysTick clock source. */
+	SysTick_CLKSourceConfig( SysTick_CLKSource_HCLK );
+}
+
+void usart2_init()
+{
+	USART_InitTypeDef USART_InitStructure;
+	USART_InitStructure.USART_BaudRate = 115200;
+	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+	USART_InitStructure.USART_StopBits = USART_StopBits_1;
+	USART_InitStructure.USART_Parity = USART_Parity_No;
+	USART_InitStructure.USART_HardwareFlowControl =
+			USART_HardwareFlowControl_None;
+	USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+
+	GPIO_InitTypeDef GPIO_InitStructure;
+	RCC_APB2PeriphClockCmd(
+			RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOA | RCC_APB2Periph_AFIO,
+			ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
+
+	/* Configure USART Tx as push-pull */
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	/* Configure USART Rx as input floating */
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	/* USART configuration */
+	USART_Init(USART1, &USART_InitStructure);
+
+	/* Enable USART */
+	USART_Cmd(USART1, ENABLE);
+}
+
+/**
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t* file, uint32_t line)
+{
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+	DEBUG_MSG("Wrong parameters value: %s:%lu\r\n", file, line);
+
+  /* Infinite loop */
+  while (1);
+}
+
+/**
+ * @brief
+ */
+void HardFault_Handler(void)
+{
+	uint32_t r_sp;
+
+	r_sp = __get_PSP();
+	DEBUG_MSG("IRQ: HardFault, PSP = %#lx\n", r_sp);
+
+	while(1);
+}
+
+void MemManage_Handler(void)
+{
+	DEBUG_MSG("IRQ: MemManager\n");
+	while(1);
+}
+
+void BusFault_Handler(void)
+{
+	DEBUG_MSG("IRQ: BusFault\n");
+	while(1);
+}
+
+void UsageFault_Handler(void)
+{
+	DEBUG_MSG("IRQ: UsageFault\n");
+	while(1);
+}
 
