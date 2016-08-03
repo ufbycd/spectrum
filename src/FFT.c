@@ -1,7 +1,5 @@
 #include "stm32f10x.h"
-#ifdef __C51__
-#	include "INTRINS.H"
-#endif
+
 #include <hal.h>
 #include <math.h>
 #define STRT 	4	//规则通道开始位
