@@ -2,6 +2,7 @@
 
 #include <hal.h>
 #include <math.h>
+
 #define STRT 	4	//规则通道开始位
 #define JSTRT	3	//注入通道开始位
 #define JEOC	2	//注入通道转换结束位
@@ -20,48 +21,49 @@ uint TEMP1;
 u8 adc_over = 0;   //256次adc转换完成
 
 uchar fractional_frequency = 64;   //分频
-extern uint16_t TableFFT[];
 long FFT_IN[NPT]; /* Complex input vector */
 long FFT_OUT[NPT]; /* Complex output vector */
 
 u8 LED_TAB2[64];				//记录 漂浮物 是否需要 停顿一下
 u8 LED_TAB[64];				//记录红色柱状
 u8 LED_TAB1[64];				//记录 漂浮点
-/*******************************************/
+
 void FFT(void)
 {
     u8 j;
     int32_t lX, lY;
+
     for (j = 5; j < 37; j++)
     {
-
         lX = (FFT_OUT[j] << 16) >> 16;
         lY = (FFT_OUT[j] >> 16);
         {
-//      float X=  256*((float)lX)/32768;
-//      float Y = 256*((float)lY)/32768;
-            //float Mag =   // 先平方和,再开方
             TEMP1 = sqrt(lX * lX + lY * lY) / 7;
             if (TEMP1 < 6)
+            {
                 TEMP1 = 0;
+            }
             else
             {
                 TEMP1 = TEMP1 - 6;
             }
 
-            /****************************************************************************************************************/
-
             if (TEMP1 > 31)
+            {
                 TEMP1 = 31;
+            }
+
             if (TEMP1 > (LED_TAB[j - 5]))
+            {
                 LED_TAB[j - 5] = TEMP1;
+            }
+
             if (TEMP1 > (LED_TAB1[j - 5]))
             {
                 LED_TAB1[j - 5] = TEMP1;
                 LED_TAB2[j - 5] = 10;                                                //提顿速度=12
             }
         }
-
     }
 }
 
@@ -86,7 +88,9 @@ void TIM2_IRQHandler(void)
 
         FFT_IN[ADC_Count] = (TestAdc() - 500) << 16;
         if (ADC_Count <= 255)
+        {
             ADC_Count++;
+        }
         else
         {
             TIM2->CR1 &= ~(1 << 0);   //关闭定时器2
@@ -96,7 +100,6 @@ void TIM2_IRQHandler(void)
             // TIM_ITConfig( TIM2,TIM_IT_CC4,DISABLE ); //关闭TIM_IT_CC4中断
             // ADC_Cmd(ADC1, DISABLE);
         }
-
     }
 }
 
