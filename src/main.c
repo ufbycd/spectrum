@@ -94,21 +94,3 @@ main(int argc, char* argv[])
 #pragma GCC diagnostic pop
 
 // ----------------------------------------------------------------------------
-void xPortPendSVHandler( void ) __attribute__ (( naked ));
-void xPortSysTickHandler( void );
-void vPortSVCHandler( void ) __attribute__ (( naked ));
-
-void SVC_Handler(void)
-{
-    vPortSVCHandler();
-}
-
-void PendSV_Handler(void)
-{
-    xPortPendSVHandler();
-}
-
-void SysTick_Handler(void)
-{
-    xPortSysTickHandler();
-}
