@@ -51,13 +51,18 @@ void TaskDelayMs(portTickType xTicksToDelay)
 void vTaskA( void *pvParameters)
 {
     ON_DEBUG(uint i);
-    ON_DEBUG(const char *name = pvParameters);
+    uint td = *((uint *) pvParameters);
+    TaskHandle_t myHandle;
+    const char * myName;
+
+    myHandle = xTaskGetCurrentTaskHandle();
+    myName = pcTaskGetName(myHandle);
 
     while(1)
     {
         Led_Trigger();
-        MDEBUG_COLOR(GREEN, "%s: %u\n", name, i++);
-        TaskDelayMs(400);
+        MDEBUG_COLOR(GREEN, "%s: %u\n", myName, i++);
+        TaskDelayMs(td);
     }
 }
 
@@ -65,6 +70,9 @@ void vTaskA( void *pvParameters)
 int
 main(int argc, char* argv[])
 {
+	static uint tad = 500;
+	static uint tbd = 2000;
+
     _Init();
     Led_Init();
 //    prvSetupHardware();
@@ -75,8 +83,8 @@ main(int argc, char* argv[])
 //  testPrint();
 //  while(1);
 
-    xTaskCreate(vTaskA, "TaskA", 256, "TaskA", 5, NULL);
-//    xTaskCreate(vTaskA, "TaskB", 128, "TaskB", 5, NULL);
+    xTaskCreate(vTaskA, "TaskA", 128, & tad, 5, NULL);
+    xTaskCreate(vTaskA, "TaskB", 128, & tbd, 5, NULL);
 //    xTaskCreate(vTaskA, "TaskC", 128, "TaskC", 5, NULL);
 
     /* Start the scheduler. */
