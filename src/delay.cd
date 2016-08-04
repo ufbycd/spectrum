@@ -1,4 +1,4 @@
-#include "delay.h"
+#include <delay.h>
 
 //修正了中断中调用出现死循环的错误
 //防止延时不准确,采用do while结构!

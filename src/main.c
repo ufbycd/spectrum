@@ -1,195 +1,114 @@
-/*
- * main.c
- *
- *  Created on: 2013-6-1
- *      Author: chenss
- */
+//
+// This file is part of the GNU ARM Eclipse distribution.
+// Copyright (c) 2014 Liviu Ionescu.
+//
 
-//#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
+// ----------------------------------------------------------------------------
+
 #include "main.h"
+#include <stdlib.h>
+#include "diag/Trace.h"
+
+#include "led.h"
 #include "task.h"
-#include "semphr.h"
-//#include "test.h"
 
-void usart2_init();
-static void prvSetupHardware(void);
+// ----------------------------------------------------------------------------
+//
+// Standalone STM32F1 empty sample (trace via NONE).
+//
+// Trace support is enabled by adding the TRACE macro definition.
+// By default the trace messages are forwarded to the NONE output,
+// but can be rerouted to any device or completely suppressed, by
+// changing the definitions required in system/src/diag/trace_impl.c
+// (currently OS_USE_TRACE_ITM, OS_USE_TRACE_SEMIHOSTING_DEBUG/_STDOUT).
+//
 
-static xSemaphoreHandle _mx_print;
+// ----- main() ---------------------------------------------------------------
 
-void uart_putchar(char c)
+// Sample pragmas to cope with warnings. Please note the related line at
+// the end of this function, used to pop the compiler diagnostics status.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wmissing-declarations"
+#pragma GCC diagnostic ignored "-Wreturn-type"
+
+
+static void _Init(void)
 {
-	while ((USART2->SR & USART_FLAG_TC) == (uint16_t)RESET);
-	USART2->DR = (c & (uint16_t)0x01FF);
+
+    NVIC_PriorityGroupConfig( NVIC_PriorityGroup_4 );
+
+    /* Configure HCLK clock as SysTick clock source. */
+    SysTick_CLKSourceConfig( SysTick_CLKSource_HCLK );
 }
 
-static void _printfSaveInit(void)
+void TaskDelayMs(portTickType xTicksToDelay)
 {
-	_mx_print = xSemaphoreCreateMutex();
+    vTaskDelay(xTicksToDelay / portTICK_RATE_MS);
 }
 
-int printSafe(const char *fmt, ...)
-{
-	int i;
-	va_list args;
-
-	va_start(args, fmt);
-
-	xSemaphoreTake(_mx_print, 1000);
-	i = vprintf(fmt, args);
-	xSemaphoreGive(_mx_print);
-
-	va_end(args);
-
-	return i;
-}
-
-void vApplicationStackOverflowHook( xTaskHandle xTask, signed portCHAR *pcTaskName )
-{
-	DEBUG_MSG("ERR: Stack Overflow at Task: %s!\n", pcTaskName);
-}
-
-void vApplicationMallocFailedHook( void )
-{
-	DEBUG_MSG("ERR: Malloc Failed !\n");
-}
-
-void vTaskDelayMs(portTickType xTicksToDelay)
-{
-	vTaskDelay(xTicksToDelay / portTICK_RATE_MS);
-}
 
 void vTaskA( void *pvParameters)
 {
-	int i = 0;
-	const char *name = pvParameters;
+    ON_DEBUG(uint i);
+    ON_DEBUG(const char *name = pvParameters);
 
-
-	while(1)
-	{
-		MDEBUG_COLOR(GREEN, "%s: %d\n", name, i++);
-		vTaskDelayMs(400);
-	}
+    while(1)
+    {
+        Led_Trigger();
+        MDEBUG_COLOR(GREEN, "%s: %u\n", name, i++);
+        TaskDelayMs(400);
+    }
 }
 
-int main(void)
+
+int
+main(int argc, char* argv[])
 {
-	prvSetupHardware();
-	usart2_init();
-	_printfSaveInit();
+    _Init();
+    Led_Init();
+//    prvSetupHardware();
+//    _SerialInit();
 
-	DEBUG_MSG("\nSystem Start.\n");
+    DEBUG_MSG("\nSystem Start.\n");
 
-//	testPrint();
-//	while(1);
+//  testPrint();
+//  while(1);
 
-	xTaskCreate(vTaskA, "TaskA", 128, "TaskA", 5, NULL);
-	xTaskCreate(vTaskA, "TaskB", 128, "TaskB", 5, NULL);
-	xTaskCreate(vTaskA, "TaskC", 128, "TaskC", 5, NULL);
+    xTaskCreate(vTaskA, "TaskA", 256, "TaskA", 5, NULL);
+//    xTaskCreate(vTaskA, "TaskB", 128, "TaskB", 5, NULL);
+//    xTaskCreate(vTaskA, "TaskC", 128, "TaskC", 5, NULL);
 
-	/* Start the scheduler. */
-	vTaskStartScheduler();
+    /* Start the scheduler. */
+    vTaskStartScheduler();
 
-	/* Will only get here if there was not enough heap space to create the
-	 idle task. */
-	DEBUG_MSG("OS Failed!\n");
-	exit(-1);
+    /* Will only get here if there was not enough heap space to create the
+     idle task. */
+    DEBUG_MSG("OS Failed!\n");
+    Led_Trigger();
+    exit(-1);
 
-	return EXIT_FAILURE;
+    return EXIT_FAILURE;
 }
 
-static void prvSetupHardware(void)
+#pragma GCC diagnostic pop
+
+// ----------------------------------------------------------------------------
+void xPortPendSVHandler( void ) __attribute__ (( naked ));
+void xPortSysTickHandler( void );
+void vPortSVCHandler( void ) __attribute__ (( naked ));
+
+void SVC_Handler(void)
 {
-	/* Set the Vector Table base address at 0x08000000 */
-	NVIC_SetVectorTable( NVIC_VectTab_FLASH, 0x0 );
-
-	NVIC_PriorityGroupConfig( NVIC_PriorityGroup_4 );
-
-	/* Configure HCLK clock as SysTick clock source. */
-	SysTick_CLKSourceConfig( SysTick_CLKSource_HCLK );
+    vPortSVCHandler();
 }
 
-void usart2_init()
+void PendSV_Handler(void)
 {
-	USART_InitTypeDef USART_InitStructure;
-	USART_InitStructure.USART_BaudRate = 115200;
-	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
-	USART_InitStructure.USART_StopBits = USART_StopBits_1;
-	USART_InitStructure.USART_Parity = USART_Parity_No;
-	USART_InitStructure.USART_HardwareFlowControl =
-			USART_HardwareFlowControl_None;
-	USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
-
-	GPIO_InitTypeDef GPIO_InitStructure;
-	RCC_APB2PeriphClockCmd(
-			RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOA | RCC_APB2Periph_AFIO,
-			ENABLE);
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
-
-	/* Configure USART Tx as push-pull */
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-
-	/* Configure USART Rx as input floating */
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-
-	/* USART configuration */
-	USART_Init(USART1, &USART_InitStructure);
-
-	/* Enable USART */
-	USART_Cmd(USART1, ENABLE);
+    xPortPendSVHandler();
 }
 
-/**
-  * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
-  * @param  file: pointer to the source file name
-  * @param  line: assert_param error line source number
-  * @retval None
-  */
-void assert_failed(uint8_t* file, uint32_t line)
+void SysTick_Handler(void)
 {
-  /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-	DEBUG_MSG("Wrong parameters value: %s:%lu\r\n", file, line);
-
-  /* Infinite loop */
-  while (1);
+    xPortSysTickHandler();
 }
-
-/**
- * @brief
- */
-void HardFault_Handler(void)
-{
-	uint32_t r_sp;
-
-	r_sp = __get_PSP();
-	DEBUG_MSG("IRQ: HardFault, PSP = %#lx\n", r_sp);
-
-	while(1);
-}
-
-void MemManage_Handler(void)
-{
-	DEBUG_MSG("IRQ: MemManager\n");
-	while(1);
-}
-
-void BusFault_Handler(void)
-{
-	DEBUG_MSG("IRQ: BusFault\n");
-	while(1);
-}
-
-void UsageFault_Handler(void)
-{
-	DEBUG_MSG("IRQ: UsageFault\n");
-	while(1);
-}
-

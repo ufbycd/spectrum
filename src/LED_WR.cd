@@ -1,5 +1,6 @@
+#include <hal.h>
 #include <stdlib.h>
-#include "hal.h"
+
 
 //#include "STM32Lib\\stm32f10x.h"
 u8 hh, ss;

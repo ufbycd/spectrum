@@ -8,7 +8,11 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
-#include <stdio.h>
+#ifdef DEBUG
+#   include <stdio.h>
+#endif
+
+#include <stdbool.h>
 
 //#define NDEBUG
 #include <assert.h>
@@ -16,6 +20,8 @@
 #include "stm32f10x.h"
 //#include "printf.h"
 #include "FreeRTOS.h"
+
+#define FORCE_INLINE __inline__ __attribute__((always_inline))
 
 #define ENABLE_COLOR 1
 
@@ -37,14 +43,16 @@
 
 int printSafe(const char *fmt, ...);
 
-#ifdef DEBUG
+#ifdef DEBUGx
 #   define DEBUG_MSG(fmt, args...) printf(fmt, ##args)
-#   define MDEBUG(fmt, args...) printSafe(fmt, ##args)
-#   define MDEBUG_COLOR(color, fmt, args...) printSafe(COLOR_TXT(fmt, color), ##args)
+#   define MDEBUG(fmt, args...) printf(fmt, ##args)
+#   define MDEBUG_COLOR(color, fmt, args...) printf(COLOR_TXT(fmt, color), ##args)
+#   define ON_DEBUG(f)  f
 #else
 #   define DEBUG_MSG(fmt, args...)
 #   define MDEBUG(fmt, args...)
 #   define MDEBUG_COLOR(color, fmt, args...)
+#   define ON_DEBUG(f)
 #endif
 
 #endif /* MAIN_H_ */
