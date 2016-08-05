@@ -13,7 +13,6 @@ void Serial_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
 	USART_InitTypeDef uartConfig;
-    USART_ClockInitTypeDef USART_ClockInitStructure;
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_AFIO, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
@@ -21,12 +20,6 @@ void Serial_Init(void)
     USART_StructInit(& uartConfig);
 	uartConfig.USART_BaudRate = 115200;
 
-    USART_ClockStructInit(& USART_ClockInitStructure);
-//    USART_ClockInitStructure.USART_Clock = USART_Clock_Disable;
-//    USART_ClockInitStructure.USART_CPOL = USART_CPOL_Low;
-//    USART_ClockInitStructure.USART_CPHA = USART_CPHA_2Edge;
-//    USART_ClockInitStructure.USART_LastBit = USART_LastBit_Disable;
-//    USART_ClockInit(USART1, &USART_ClockInitStructure);
 
 	/* Configure USART Tx as push-pull */
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;

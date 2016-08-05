@@ -6,13 +6,17 @@
  */
 
 #include "audio.h"
+#include "task.h"
+#include "event_groups.h"
 
+#define DMA_BUFFER_SIZE     256
+static int16_t _dmaBuf[DMA_BUFFER_SIZE];
 
-#define DMA_BUFFER_SIZE     6
-int16_t adc_dma_buf[DMA_BUFFER_SIZE];
+#define _EVENT_SAMPLE_FINISH 0x1
 
+static EventGroupHandle_t _eventHandle;
 
-static void _AdcConfig(void);
+static void _AdcInit(void);
 static void _AdcGpioInit(void);
 static void _AdcDmaInit(void);
 static void _AdcTimerInit(void);
@@ -20,21 +24,12 @@ static void _AdcTimerInit(void);
 void Audio_Init(void)
 {
     _AdcGpioInit();
-    _AdcConfig();               // 注意此处的初始化顺序，否则采样传输的数据容易出现数据错位的结果
+    _AdcInit();               // 注意此处的初始化顺序，否则采样传输的数据容易出现数据错位的结果
     _AdcDmaInit();             //
     _AdcTimerInit();           //
 }
 
-void user_adc_init()
-{
-    _AdcGpioInit();
-    _AdcConfig();               // 注意此处的初始化顺序，否则采样传输的数据容易出现数据错位的结果
-    _AdcDmaInit();             //
-    _AdcTimerInit();           //
-
-}
-
-static void _AdcConfig(void)
+static void _AdcInit(void)
 {
     ADC_InitTypeDef adcConfig;
 
@@ -88,7 +83,7 @@ static void _AdcDmaInit(void)
     dmaConfig.DMA_BufferSize = DMA_BUFFER_SIZE;            //DMA缓存数组大小设置
     dmaConfig.DMA_DIR = DMA_DIR_PeripheralSRC;             //DMA方向：外设作为数据源
     dmaConfig.DMA_M2M = DISABLE;                           //内存到内存禁用
-    dmaConfig.DMA_MemoryBaseAddr = (uint32_t)&adc_dma_buf[0];//缓存数据数组起始地址
+    dmaConfig.DMA_MemoryBaseAddr = (uint32_t)&_dmaBuf[0];//缓存数据数组起始地址
     dmaConfig.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;//数据大小设置为Halfword
     dmaConfig.DMA_MemoryInc = DMA_MemoryInc_Enable;        //内存地址递增
     dmaConfig.DMA_Mode = DMA_Mode_Circular;                //DMA循环模式，即完成后重新开始覆盖
@@ -106,15 +101,16 @@ static void _AdcDmaInit(void)
 static void _AdcTimerInit(void)
 {
     TIM_TimeBaseInitTypeDef timerConfig;
-    NVIC_InitTypeDef nvicConfig;
+//    NVIC_InitTypeDef nvicConfig;
 
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);   //使能TIM2时钟
-    nvicConfig.NVIC_IRQChannel = TIM2_IRQn;                //选择TIM2中断通道
-    nvicConfig.NVIC_IRQChannelCmd = ENABLE;                //使能TIM2中断
-    nvicConfig.NVIC_IRQChannelPreemptionPriority = 0;      //优先级为0
-    NVIC_Init(&nvicConfig);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);   //使能TIM3时钟
 
-    TIM_TimeBaseStructInit(&timerConfig);                  //初始化TIMBASE结构体
+//    nvicConfig.NVIC_IRQChannel = TIM3_IRQn;                //选择TIM2中断通道
+//    nvicConfig.NVIC_IRQChannelCmd = ENABLE;                //使能TIM2中断
+//    nvicConfig.NVIC_IRQChannelPreemptionPriority = 0;      //优先级为0
+//    NVIC_Init(&nvicConfig);
+
+//    TIM_TimeBaseStructInit(&timerConfig);                  //初始化TIMBASE结构体
     timerConfig.TIM_ClockDivision = TIM_CKD_DIV1;          //系统时钟，不分频，48M
     timerConfig.TIM_CounterMode = TIM_CounterMode_Up;      //向上计数模式
     timerConfig.TIM_Period = 312;                          //每312 uS触发一次中断，开启ADC
@@ -122,15 +118,23 @@ static void _AdcTimerInit(void)
     timerConfig.TIM_RepetitionCounter = 0x00;              //发生0+1次update事件产生中断
     TIM_TimeBaseInit(TIM3, &timerConfig);
 
-    TIM_ITConfig(TIM3, TIM_IT_Update, ENABLE);              //使能TIM2中断
-    TIM_SelectOutputTrigger(TIM3, TIM_TRGOSource_Update);   //选择TIM2的update事件更新为触发源
-    TIM_Cmd(TIM3, ENABLE);                                  //使能TIM2
+    TIM_ITConfig(TIM3, TIM_IT_Update, ENABLE);              //使能TIM3中断
+    TIM_SelectOutputTrigger(TIM3, TIM_TRGOSource_Update);   //选择TIM3的update事件更新为触发源
 }
 
-
-void TIM2_IRQHandler(void)
+inline static void _SampleStart(void)
 {
+	memset(_dmaBuf, 0, sizeof(_dmaBuf));
 
+	TIM_Cmd(TIM3, ENABLE);
+    DMA_ClearITPendingBit(DMA_IT_TC);               //清除一次DMA中断标志
+    DMA_Cmd(DMA1_Channel1, ENABLE);                 //使能DMA1
+}
+
+inline static void _SampleStop(void)
+{
+	TIM_Cmd(TIM3, DISABLE);
+	DMA_Cmd(DMA1_Channel1, DISABLE);
 }
 
 void TIM3_IRQHandler(void)
@@ -145,8 +149,58 @@ void DMA1_Channel1_IRQHandler(void)
 {
     if(DMA_GetITStatus(DMA_IT_TC))                      //判断DMA传输完成中断
     {
-        TIM_Cmd(TIM2, DISABLE);                     //完成周波采样，停止定时器
-        DMA_Cmd(DMA1_Channel1, DISABLE);            //完成周波采样，停止DMA
+    	BaseType_t xHigherPriorityTaskWoken, xResult;
+
+    	DMA_ClearITPendingBit(DMA_IT_TC);           //清除DMA中断标志位
+    	_SampleStop();
+
+	  /* xHigherPriorityTaskWoken must be initialised to pdFALSE. */
+	  xHigherPriorityTaskWoken = pdFALSE;
+
+	  /* Set bit 0 and bit 4 in xEventGroup. */
+	  xResult = xEventGroupSetBitsFromISR(
+								  _eventHandle,  /* The event group being updated. */
+								  _EVENT_SAMPLE_FINISH, /* The bits being set. */
+								  &xHigherPriorityTaskWoken);
+
+	  /* Was the message posted successfully? */
+	  if( xResult != pdFAIL )
+	  {
+		  /* If xHigherPriorityTaskWoken is now set to pdTRUE then a context
+		  switch should be requested.  The macro used is port specific and will
+		  be either portYIELD_FROM_ISR() or portEND_SWITCHING_ISR() - refer to
+		  the documentation page for the port being used. */
+		  portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+	  }
     }
-    DMA_ClearITPendingBit(DMA_IT_TC);                   //清除DMA中断标志位
+}
+
+void Audio_SampleTask(void *args)
+{
+	EventBits_t events;
+	const TickType_t timeout = 1000 / portTICK_PERIOD_MS;
+
+	_eventHandle = xEventGroupCreate();
+
+	DEBUG_MSG("audio sample start...\n");
+
+	while(1)
+	{
+		_SampleStart();
+		events = xEventGroupWaitBits(
+				_eventHandle,
+				_EVENT_SAMPLE_FINISH,
+				pdTRUE,
+				pdFALSE,
+				timeout);
+		if((events & _EVENT_SAMPLE_FINISH) == 0)
+		{
+			_SampleStop();
+			continue;
+		}
+
+		DEBUG_MSG("Audio sample finish\n");
+		vTaskDelay(500 / portTICK_RATE_MS);
+
+	}
 }

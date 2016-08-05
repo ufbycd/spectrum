@@ -12,6 +12,6 @@
 #include "main.h"
 
 void Audio_Init(void);
-
+void Audio_SampleTask(void *args);
 
 #endif /* AUDIO_H_ */

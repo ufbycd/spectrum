@@ -110,7 +110,8 @@
 #define configUSE_ALTERNATIVE_API	0
 #define configUSE_QUEUE_SETS		0
 
-#define configUSE_EVENTS			0
+#define configUSE_EVENTS			1
+#define configSUPPORT_STATIC_ALLOCATION 0
 
 /* Hook function related definitions. */
 #define configUSE_IDLE_HOOK				0
@@ -126,7 +127,7 @@
 #define configMAX_CO_ROUTINE_PRIORITIES	2
 
 /* Software timer related definitions. */
-#define configUSE_TIMERS				0
+#define configUSE_TIMERS				1
 #define configTIMER_TASK_PRIORITY		3
 #define configTIMER_QUEUE_LENGTH		10
 #define configTIMER_TASK_STACK_DEPTH	configMINIMAL_STACK_SIZE
@@ -167,6 +168,7 @@ NVIC value of 255. */
 #define INCLUDE_xTimerGetTimerDaemonTaskHandle  0
 #define INCLUDE_pcTaskGetTaskName               0
 #define INCLUDE_eTaskGetState                   0
+#define INCLUDE_xTimerPendFunctionCall 1
 
 /* A header file that defines trace macro can be included here. */
 

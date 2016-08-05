@@ -8,10 +8,11 @@
 #include "main.h"
 #include <stdlib.h>
 #include "diag/Trace.h"
+#include "task.h"
 
 #include "led.h"
 #include "serial.h"
-#include "task.h"
+#include "audio.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -80,18 +81,18 @@ int
 main(int argc, char* argv[])
 {
 	static uint tad = 513;
-	static uint tbd = 987;
-	static uint tcd = 1743;
+//	static uint tbd = 987;
+//	static uint tcd = 1743;
 
     _Init();
     Led_Init();
     Serial_Init();
+    Audio_Init();
 
     DEBUG_MSG("\nSystem start.\n");
 
-    xTaskCreate(vTaskA, "TaskA", 256, & tad, 5, NULL);
-    xTaskCreate(vTaskA, "TaskB", 128, & tbd, 5, NULL);
-//    xTaskCreate(vTaskA, "TaskC", 128, & tcd, 5, NULL);
+    xTaskCreate(vTaskA, "TaskA", 128, & tad, 5, NULL);
+    xTaskCreate(Audio_SampleTask, "Audio", 128, NULL, 4, NULL);
 
     /* Start the scheduler. */
     vTaskStartScheduler();
