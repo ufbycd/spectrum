@@ -10,6 +10,7 @@
 #include "diag/Trace.h"
 
 #include "led.h"
+#include "serial.h"
 #include "task.h"
 
 // ----------------------------------------------------------------------------
@@ -42,7 +43,7 @@ static void _Init(void)
     SysTick_CLKSourceConfig( SysTick_CLKSource_HCLK );
 }
 
-void TaskDelayMs(portTickType xTicksToDelay)
+inline void TaskDelayMs(portTickType xTicksToDelay)
 {
     vTaskDelay(xTicksToDelay / portTICK_RATE_MS);
 }
@@ -50,42 +51,47 @@ void TaskDelayMs(portTickType xTicksToDelay)
 
 void vTaskA( void *pvParameters)
 {
-    ON_DEBUG(uint i);
+    ON_DEBUG(uint i = 0);
     uint td = *((uint *) pvParameters);
-    TaskHandle_t myHandle;
-    const char * myName;
+    ON_DEBUG(TaskHandle_t myHandle);
+    ON_DEBUG(const char * myName);
 
-    myHandle = xTaskGetCurrentTaskHandle();
-    myName = pcTaskGetName(myHandle);
+    ON_DEBUG(myHandle = xTaskGetCurrentTaskHandle());
+    ON_DEBUG(myName = pcTaskGetName(myHandle));
 
     while(1)
     {
         Led_Trigger();
-        MDEBUG_COLOR(GREEN, "%s: %u\n", myName, i++);
+//        MDEBUG_COLOR(GREEN, "%s: %u\n", myName, i++);
+        ON_DEBUG(printf("%s: %u\n", myName, i++));
         TaskDelayMs(td);
     }
 }
+
+#if configCHECK_FOR_STACK_OVERFLOW
+void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
+{
+	ON_DEBUG(printf("Task: %s stack overflow!\n", pcTaskName));
+}
+#endif
 
 
 int
 main(int argc, char* argv[])
 {
-	static uint tad = 500;
-	static uint tbd = 2000;
+	static uint tad = 513;
+	static uint tbd = 987;
+	static uint tcd = 1743;
 
     _Init();
     Led_Init();
-//    prvSetupHardware();
-//    _SerialInit();
+    Serial_Init();
 
-    DEBUG_MSG("\nSystem Start.\n");
+    DEBUG_MSG("\nSystem start.\n");
 
-//  testPrint();
-//  while(1);
-
-    xTaskCreate(vTaskA, "TaskA", 128, & tad, 5, NULL);
+    xTaskCreate(vTaskA, "TaskA", 256, & tad, 5, NULL);
     xTaskCreate(vTaskA, "TaskB", 128, & tbd, 5, NULL);
-//    xTaskCreate(vTaskA, "TaskC", 128, "TaskC", 5, NULL);
+//    xTaskCreate(vTaskA, "TaskC", 128, & tcd, 5, NULL);
 
     /* Start the scheduler. */
     vTaskStartScheduler();

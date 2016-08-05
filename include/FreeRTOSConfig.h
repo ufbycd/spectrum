@@ -115,7 +115,7 @@
 /* Hook function related definitions. */
 #define configUSE_IDLE_HOOK				0
 #define configUSE_TICK_HOOK				0
-#define configCHECK_FOR_STACK_OVERFLOW	0
+#define configCHECK_FOR_STACK_OVERFLOW	1
 #define configUSE_MALLOC_FAILED_HOOK	0
 
 /* Run time stats gathering related definitions. */
@@ -130,6 +130,9 @@
 #define configTIMER_TASK_PRIORITY		3
 #define configTIMER_QUEUE_LENGTH		10
 #define configTIMER_TASK_STACK_DEPTH	configMINIMAL_STACK_SIZE
+
+/* newlib  */
+#define configUSE_NEWLIB_REENTRANT 0
 
 /* This is the raw value as per the Cortex-M3 NVIC.  Values can be 255
 (lowest) to 0 (1?) (highest). */

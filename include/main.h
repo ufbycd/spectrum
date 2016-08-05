@@ -43,7 +43,7 @@
 
 int printSafe(const char *fmt, ...);
 
-#ifdef DEBUGx
+#ifdef DEBUG
 #   define DEBUG_MSG(fmt, args...) printf(fmt, ##args)
 #   define MDEBUG(fmt, args...) printf(fmt, ##args)
 #   define MDEBUG_COLOR(color, fmt, args...) printf(COLOR_TXT(fmt, color), ##args)
