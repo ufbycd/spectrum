@@ -9,6 +9,8 @@
 #include "task.h"
 #include "event_groups.h"
 
+#include <string.h>
+
 #define DMA_BUFFER_SIZE     256
 static int16_t _dmaBuf[DMA_BUFFER_SIZE];
 
@@ -178,7 +180,6 @@ void DMA1_Channel1_IRQHandler(void)
 void Audio_SampleTask(void *args)
 {
 	EventBits_t events;
-	const TickType_t timeout = 1000 / portTICK_PERIOD_MS;
 
 	_eventHandle = xEventGroupCreate();
 
@@ -192,7 +193,7 @@ void Audio_SampleTask(void *args)
 				_EVENT_SAMPLE_FINISH,
 				pdTRUE,
 				pdFALSE,
-				timeout);
+				UTILS_MS_TICKS(100));
 		if((events & _EVENT_SAMPLE_FINISH) == 0)
 		{
 			_SampleStop();
@@ -200,7 +201,7 @@ void Audio_SampleTask(void *args)
 		}
 
 		DEBUG_MSG("Audio sample finish\n");
-		vTaskDelay(500 / portTICK_RATE_MS);
+		Utils_DelayMs(500);
 
 	}
 }

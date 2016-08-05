@@ -20,6 +20,7 @@
 #include "stm32f10x.h"
 //#include "printf.h"
 #include "FreeRTOS.h"
+#include "utils.h"
 
 #define FORCE_INLINE __inline__ __attribute__((always_inline))
 

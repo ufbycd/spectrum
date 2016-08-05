@@ -77,6 +77,10 @@
 
 /* Library includes. */
 //#include "stm32f10x_lib.h"
+#ifndef DEBUG
+#	define NDEBUG 1
+#endif
+#include "assert.h"
 
 /*-----------------------------------------------------------
  * Application specific definitions.
@@ -106,7 +110,7 @@
 #define configUSE_MUTEXES			0
 
 #define configUSE_RECURSIVE_MUTEXES	0
-#define configUSE_COUNTING_SEMAPHORES	0
+#define configUSE_COUNTING_SEMAPHORES	1
 #define configUSE_ALTERNATIVE_API	0
 #define configUSE_QUEUE_SETS		0
 
@@ -150,7 +154,7 @@ NVIC value of 255. */
 #define configLIBRARY_KERNEL_INTERRUPT_PRIORITY	15
 
 /* Define to trap errors during development. */
-//#define configASSERT( x ) if( ( x ) == 0 ) vCallAssert( __FILE__, __LINE__ )
+#define configASSERT( x ) assert(x)
 
 /* Optional functions - most linkers will remove unused functions anyway. */
 #define INCLUDE_vTaskPrioritySet		0

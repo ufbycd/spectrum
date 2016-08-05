@@ -44,12 +44,6 @@ static void _Init(void)
     SysTick_CLKSourceConfig( SysTick_CLKSource_HCLK );
 }
 
-inline void TaskDelayMs(portTickType xTicksToDelay)
-{
-    vTaskDelay(xTicksToDelay / portTICK_RATE_MS);
-}
-
-
 void vTaskA( void *pvParameters)
 {
     ON_DEBUG(uint i = 0);
@@ -65,20 +59,11 @@ void vTaskA( void *pvParameters)
         Led_Trigger();
 //        MDEBUG_COLOR(GREEN, "%s: %u\n", myName, i++);
         ON_DEBUG(printf("%s: %u\n", myName, i++));
-        TaskDelayMs(td);
+        Utils_DelayMs(td);
     }
 }
 
-#if configCHECK_FOR_STACK_OVERFLOW
-void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
-{
-	ON_DEBUG(printf("Task: %s stack overflow!\n", pcTaskName));
-}
-#endif
-
-
-int
-main(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
 	static uint tad = 513;
 //	static uint tbd = 987;

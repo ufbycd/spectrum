@@ -39,6 +39,7 @@
 #include <sys/times.h>
 #include <sys/unistd.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "FreeRTOS.h"
 #include "portable.h"
 #include "serial.h"
@@ -331,3 +332,32 @@ int _write(int file, char *ptr, int len)
 	return len;
 }
 
+
+void
+__attribute__((noreturn))
+__assert_func (const char *file, int line, const char *func,
+               const char *failedexpr)
+{
+  DEBUG_MSG("assertion \"%s\" failed: file \"%s\", line %d%s%s\n",
+                failedexpr, file, line, func ? ", function: " : "",
+                func ? func : "");
+  abort();
+  /* NOTREACHED */
+}
+
+/**
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t* file, uint32_t line)
+{
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+	DEBUG_MSG("Fail: %s:%lu\n", file, line);
+
+  /* Infinite loop */
+  abort();
+}

@@ -6,20 +6,30 @@
  */
 
 #include "serial.h"
+#include "circular_buffer.h"
+#include "semphr.h"
+
+#define _TX_BUFFER_SIZE 128u
 
 
+static uint8_t _txBuf[_TX_BUFFER_SIZE];
+static cbuf_t _txCtrl;
+static SemaphoreHandle_t _sempHandle;
 
 void Serial_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
 	USART_InitTypeDef uartConfig;
 
+	CBUF_Init(& _txCtrl, _txBuf, sizeof(_txBuf));
+	_sempHandle = xSemaphoreCreateCounting(_TX_BUFFER_SIZE, _TX_BUFFER_SIZE);
+	 configASSERT(_sempHandle);
+
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_AFIO, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
 
     USART_StructInit(& uartConfig);
 	uartConfig.USART_BaudRate = 115200;
-
 
 	/* Configure USART Tx as push-pull */
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
@@ -46,14 +56,34 @@ char Serial_GetChar(void)
 
 void Serial_PutChar(char c)
 {
-	if(c == '\n')
-	{
-		Serial_PutChar('\r');
-	}
 
-	USART_SendData(USART1, c);
-	while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET)
+	if(xSemaphoreTake(_sempHandle, 2))
 	{
+		if(c == '\n')
+		{
+			Serial_PutChar('\r');
+		}
+
+		CBUF_Write(& _txCtrl, & c);
+		if(USART_GetFlagStatus(USART1, USART_FLAG_TC) == SET)
+		{
+			USART_ITConfig(USART1, USART_IT_TXE, ENABLE);
+		}
+	}
+}
+
+void USART1_IRQHandler(void)
+{
+	elem_t c;
+
+	if(CBUF_Read(& _txCtrl, & c) == 0)
+	{
+		USART_SendData(USART1, (uint16_t) c);
+		xSemaphoreGiveFromISR(_sempHandle, NULL);
+	}
+	else
+	{
+		USART_ITConfig(USART1, USART_IT_TXE, DISABLE);
 	}
 }
 
