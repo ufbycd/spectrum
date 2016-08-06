@@ -11,6 +11,10 @@
 
 #include <string.h>
 
+
+// 采样频率（Hz）
+#define SAMPLE_FREQ 44000u
+
 #define DMA_BUFFER_SIZE     256
 static int16_t _dmaBuf[DMA_BUFFER_SIZE];
 
@@ -105,16 +109,10 @@ static void _AdcDmaInit(void)
 static void _AdcTimerInit(void)
 {
     TIM_TimeBaseInitTypeDef timerConfig;
-//    NVIC_InitTypeDef nvicConfig;
 
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);   //使能TIM3时钟
 
-//    nvicConfig.NVIC_IRQChannel = TIM3_IRQn;                //选择TIM2中断通道
-//    nvicConfig.NVIC_IRQChannelCmd = ENABLE;                //使能TIM2中断
-//    nvicConfig.NVIC_IRQChannelPreemptionPriority = 0;      //优先级为0
-//    NVIC_Init(&nvicConfig);
-
-//    TIM_TimeBaseStructInit(&timerConfig);                  //初始化TIMBASE结构体
+//    TIM_TimeBaseStructInit(&timerConfig);                //初始化TIMBASE结构体
     timerConfig.TIM_ClockDivision = TIM_CKD_DIV1;          //系统时钟，不分频，48M
     timerConfig.TIM_CounterMode = TIM_CounterMode_Up;      //向上计数模式
     timerConfig.TIM_Period = 312;                          //每312 uS触发一次中断，开启ADC
