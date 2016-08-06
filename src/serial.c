@@ -9,12 +9,22 @@
 #include "circular_buffer.h"
 #include "semphr.h"
 
+#define USE_CIRCULAR_BUFFER 1
+
+// XXX 目前使用此功能有异常
+#define USE_SAFE_PUT_CHAR 0
+
 #define _TX_BUFFER_SIZE 128u
 
-
+#if USE_CIRCULAR_BUFFER
+static volatile bool _isTransmitting;
 static uint8_t _txBuf[_TX_BUFFER_SIZE];
 static cbuf_t _txCtrl;
+#endif
+
+#if USE_SAFE_PUT_CHAR
 static SemaphoreHandle_t _sempHandle;
+#endif
 
 void Serial_Init(void)
 {
@@ -22,9 +32,15 @@ void Serial_Init(void)
 	USART_InitTypeDef uartConfig;
 	NVIC_InitTypeDef nvicConfig;
 
+#if USE_CIRCULAR_BUFFER
+	_isTransmitting = false;
 	CBUF_Init(&_txCtrl, _txBuf, sizeof(_txBuf));
+#endif
+
+#if USE_SAFE_PUT_CHAR
 	_sempHandle = xSemaphoreCreateCounting(_TX_BUFFER_SIZE, _TX_BUFFER_SIZE);
 	configASSERT(_sempHandle);
+#endif
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_AFIO, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
@@ -63,24 +79,26 @@ char Serial_GetChar(void)
 
 void Serial_PutChar(char c)
 {
-
-//	if(xSemaphoreTake(_sempHandle, 2))
+#if USE_SAFE_PUT_CHAR
+	if(xSemaphoreTake(_sempHandle, 2))
+#endif
 	{
 		if(c == '\n')
 		{
 			Serial_PutChar('\r');
 		}
+#if USE_CIRCULAR_BUFFER
+		int8_t ret;
 
-#if 0
-		CBUF_Write(& _txCtrl, & c);
-		if(USART_GetFlagStatus(USART1, USART_FLAG_TC) == SET)
+		ret = CBUF_Write(& _txCtrl, & c);
+		if((ret == 0) && (! _isTransmitting))
 		{
-			USART_ClearITPendingBit(USART1, USART_IT_TXE);
+			_isTransmitting = true;
 			USART_ITConfig(USART1, USART_IT_TXE, ENABLE);
 		}
 #else
-	USART_SendData(USART1, c);
-	while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+		USART_SendData(USART1, c);
+		while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
 #endif
 	}
 }
@@ -92,12 +110,17 @@ void USART1_IRQHandler(void)
 	if(CBUF_Read(& _txCtrl, & c) == 0)
 	{
 		USART_SendData(USART1, (uint16_t) c);
-//		xSemaphoreGiveFromISR(_sempHandle, NULL);
+#if USE_SAFE_PUT_CHAR
+		xSemaphoreGiveFromISR(_sempHandle, NULL);
+#endif
 	}
+#if USE_CIRCULAR_BUFFER
 	else
 	{
 		USART_ITConfig(USART1, USART_IT_TXE, DISABLE);
+		_isTransmitting = false;
 	}
+#endif
 }
 
 
