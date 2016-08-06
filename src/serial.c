@@ -18,17 +18,24 @@ static SemaphoreHandle_t _sempHandle;
 
 void Serial_Init(void)
 {
-    GPIO_InitTypeDef GPIO_InitStructure;
+	GPIO_InitTypeDef GPIO_InitStructure;
 	USART_InitTypeDef uartConfig;
+	NVIC_InitTypeDef nvicConfig;
 
-	CBUF_Init(& _txCtrl, _txBuf, sizeof(_txBuf));
+	CBUF_Init(&_txCtrl, _txBuf, sizeof(_txBuf));
 	_sempHandle = xSemaphoreCreateCounting(_TX_BUFFER_SIZE, _TX_BUFFER_SIZE);
-	 configASSERT(_sempHandle);
+	configASSERT(_sempHandle);
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_AFIO, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
 
-    USART_StructInit(& uartConfig);
+	nvicConfig.NVIC_IRQChannel = USART1_IRQn;
+	nvicConfig.NVIC_IRQChannelPreemptionPriority = configMAX_SYSCALL_INTERRUPT_PRIORITY + 1;
+	nvicConfig.NVIC_IRQChannelSubPriority = 8;
+	nvicConfig.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(& nvicConfig);
+
+	USART_StructInit(&uartConfig);
 	uartConfig.USART_BaudRate = 115200;
 
 	/* Configure USART Tx as push-pull */
@@ -57,18 +64,24 @@ char Serial_GetChar(void)
 void Serial_PutChar(char c)
 {
 
-	if(xSemaphoreTake(_sempHandle, 2))
+//	if(xSemaphoreTake(_sempHandle, 2))
 	{
 		if(c == '\n')
 		{
 			Serial_PutChar('\r');
 		}
 
+#if 0
 		CBUF_Write(& _txCtrl, & c);
 		if(USART_GetFlagStatus(USART1, USART_FLAG_TC) == SET)
 		{
+			USART_ClearITPendingBit(USART1, USART_IT_TXE);
 			USART_ITConfig(USART1, USART_IT_TXE, ENABLE);
 		}
+#else
+	USART_SendData(USART1, c);
+	while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+#endif
 	}
 }
 
@@ -79,7 +92,7 @@ void USART1_IRQHandler(void)
 	if(CBUF_Read(& _txCtrl, & c) == 0)
 	{
 		USART_SendData(USART1, (uint16_t) c);
-		xSemaphoreGiveFromISR(_sempHandle, NULL);
+//		xSemaphoreGiveFromISR(_sempHandle, NULL);
 	}
 	else
 	{

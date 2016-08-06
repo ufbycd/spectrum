@@ -78,7 +78,9 @@ static void _AdcDmaInit(void)
 
     nvicConfig.NVIC_IRQChannel = DMA1_Channel1_IRQn;       //选择DMA1通道中断
     nvicConfig.NVIC_IRQChannelCmd = ENABLE;                //中断使能
-    nvicConfig.NVIC_IRQChannelPreemptionPriority = 0;      //优先级设为0
+    // 中断内调用FreeRTOS函数，则需大于或等于此值
+    nvicConfig.NVIC_IRQChannelPreemptionPriority = configMAX_SYSCALL_INTERRUPT_PRIORITY;
+    nvicConfig.NVIC_IRQChannelSubPriority = 0;
     NVIC_Init(&nvicConfig);
 
     DMA_StructInit(&dmaConfig);                            //初始化DMA结构体
@@ -177,13 +179,27 @@ void DMA1_Channel1_IRQHandler(void)
     }
 }
 
+uint32_t _CalcDmaBufAverage(void)
+{
+	uint i;
+	uint32_t sum;
+
+	sum = 0;
+	for(i = 0; i < 20; i++)
+	{
+		sum += _dmaBuf[i];
+	}
+
+	return sum / 20;
+}
+
 void Audio_SampleTask(void *args)
 {
 	EventBits_t events;
 
 	_eventHandle = xEventGroupCreate();
 
-	DEBUG_MSG("audio sample start...\n");
+//	DEBUG_MSG("audio sample start...\n");
 
 	while(1)
 	{
@@ -200,7 +216,7 @@ void Audio_SampleTask(void *args)
 			continue;
 		}
 
-		DEBUG_MSG("Audio sample finish\n");
+		DEBUG_MSG("audio average: %lu\n", _CalcDmaBufAverage());
 		Utils_DelayMs(500);
 
 	}

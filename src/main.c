@@ -46,19 +46,19 @@ static void _Init(void)
 
 void vTaskA( void *pvParameters)
 {
-    ON_DEBUG(uint i = 0);
+//    ON_DEBUG(uint i = 0);
     uint td = *((uint *) pvParameters);
-    ON_DEBUG(TaskHandle_t myHandle);
-    ON_DEBUG(const char * myName);
-
-    ON_DEBUG(myHandle = xTaskGetCurrentTaskHandle());
-    ON_DEBUG(myName = pcTaskGetName(myHandle));
+//    ON_DEBUG(TaskHandle_t myHandle);
+//    ON_DEBUG(const char * myName);
+//
+//    ON_DEBUG(myHandle = xTaskGetCurrentTaskHandle());
+//    ON_DEBUG(myName = pcTaskGetName(myHandle));
 
     while(1)
     {
         Led_Trigger();
 //        MDEBUG_COLOR(GREEN, "%s: %u\n", myName, i++);
-        ON_DEBUG(printf("%s: %u\n", myName, i++));
+//        ON_DEBUG(printf("%s: %u\n", myName, i++));
         Utils_DelayMs(td);
     }
 }
@@ -77,7 +77,7 @@ int main(int argc, char* argv[])
     DEBUG_MSG("\nSystem start.\n");
 
     xTaskCreate(vTaskA, "TaskA", 128, & tad, 5, NULL);
-    xTaskCreate(Audio_SampleTask, "Audio", 128, NULL, 4, NULL);
+    xTaskCreate(Audio_SampleTask, "Audio", 256, NULL, 4, NULL);
 
     /* Start the scheduler. */
     vTaskStartScheduler();
