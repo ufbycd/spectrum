@@ -105,6 +105,7 @@ void Serial_PutChar(char c)
 
 void USART1_IRQHandler(void)
 {
+#if USE_CIRCULAR_BUFFER
 	elem_t c;
 
 	if(CBUF_Read(& _txCtrl, & c) == 0)
@@ -114,7 +115,6 @@ void USART1_IRQHandler(void)
 		xSemaphoreGiveFromISR(_sempHandle, NULL);
 #endif
 	}
-#if USE_CIRCULAR_BUFFER
 	else
 	{
 		USART_ITConfig(USART1, USART_IT_TXE, DISABLE);

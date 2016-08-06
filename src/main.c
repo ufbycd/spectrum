@@ -35,6 +35,8 @@
 #pragma GCC diagnostic ignored "-Wreturn-type"
 
 
+#define TEST_ASSERT 0
+
 static void _Init(void)
 {
 
@@ -42,6 +44,13 @@ static void _Init(void)
 
     /* Configure HCLK clock as SysTick clock source. */
     SysTick_CLKSourceConfig( SysTick_CLKSource_HCLK );
+}
+
+static void _test(void)
+{
+#if TEST_ASSERT
+	assert(false);
+#endif
 }
 
 void vTaskA( void *pvParameters)
@@ -58,7 +67,7 @@ void vTaskA( void *pvParameters)
     {
         Led_Trigger();
 //        MDEBUG_COLOR(GREEN, "%s: %u\n", myName, i++);
-//        ON_DEBUG(printf("%s: %u\n", myName, i++));
+//        ON_DEBUG(printf("TaskA: %u\n", i++));
         Utils_DelayMs(td);
     }
 }
@@ -75,6 +84,7 @@ int main(int argc, char* argv[])
     Audio_Init();
 
     DEBUG_MSG("\nSystem start.\n");
+    _test();
 
     xTaskCreate(vTaskA, "TaskA", 128, & tad, 5, NULL);
     xTaskCreate(Audio_SampleTask, "Audio", 256, NULL, 4, NULL);

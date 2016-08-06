@@ -181,7 +181,7 @@ void DMA1_Channel1_IRQHandler(void)
 
 uint32_t _CalcDmaBufAverage(void)
 {
-	uint i;
+	unsigned  i;
 	uint32_t sum;
 
 	sum = 0;
@@ -216,7 +216,7 @@ void Audio_SampleTask(void *args)
 			continue;
 		}
 
-		DEBUG_MSG("audio average: %lu\n", _CalcDmaBufAverage());
+		printf("audio average: %lu\n", _CalcDmaBufAverage());
 		Utils_DelayMs(500);
 
 	}
