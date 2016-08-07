@@ -8,7 +8,6 @@
 #include "main.h"
 #include <stdlib.h>
 #include "diag/Trace.h"
-#include "task.h"
 
 #include "led.h"
 #include "serial.h"
@@ -53,7 +52,7 @@ static void _test(void)
 #endif
 }
 
-void vTaskA( void *pvParameters)
+void vTaskA( void const *pvParameters)
 {
 //    ON_DEBUG(uint i = 0);
     uint td = *((uint *) pvParameters);
@@ -68,7 +67,7 @@ void vTaskA( void *pvParameters)
         Led_Trigger();
 //        MDEBUG_COLOR(GREEN, "%s: %u\n", myName, i++);
 //        ON_DEBUG(printf("TaskA: %u\n", i++));
-        Utils_DelayMs(td);
+        osDelay(td);
     }
 }
 
@@ -86,11 +85,11 @@ int main(int argc, char* argv[])
     DEBUG_MSG("\nSystem start.\n");
     _test();
 
-    xTaskCreate(vTaskA, "TaskA", 128, & tad, 5, NULL);
-    xTaskCreate(Audio_SampleTask, "Audio", 256, NULL, 4, NULL);
+    osThreadDef(defaultTask, vTaskA, osPriorityNormal, 0, 128);
+    osThreadCreate(osThread(defaultTask), & tad);
 
     /* Start the scheduler. */
-    vTaskStartScheduler();
+    osKernelStart();
 
     /* Will only get here if there was not enough heap space to create the
      idle task. */

@@ -6,8 +6,6 @@
  */
 
 #include "audio.h"
-#include "task.h"
-#include "event_groups.h"
 
 #include <string.h>
 
@@ -20,7 +18,7 @@ static int16_t _dmaBuf[DMA_BUFFER_SIZE];
 
 #define _EVENT_SAMPLE_FINISH 0x1
 
-static EventGroupHandle_t _eventHandle;
+static osThreadId _sampleTid;
 
 static void _AdcInit(void);
 static void _AdcGpioInit(void);
@@ -33,6 +31,10 @@ void Audio_Init(void)
     _AdcInit();               // 注意此处的初始化顺序，否则采样传输的数据容易出现数据错位的结果
     _AdcDmaInit();             //
     _AdcTimerInit();           //
+
+
+    osThreadDef(audio, Audio_SampleTask, osPriorityHigh, 0, 256);
+    _sampleTid = osThreadCreate(osThread(audio), NULL);
 }
 
 static void _AdcInit(void)
@@ -151,29 +153,9 @@ void DMA1_Channel1_IRQHandler(void)
 {
     if(DMA_GetITStatus(DMA_IT_TC))                      //判断DMA传输完成中断
     {
-    	BaseType_t xHigherPriorityTaskWoken, xResult;
-
     	DMA_ClearITPendingBit(DMA_IT_TC);           //清除DMA中断标志位
     	_SampleStop();
-
-	  /* xHigherPriorityTaskWoken must be initialised to pdFALSE. */
-	  xHigherPriorityTaskWoken = pdFALSE;
-
-	  /* Set bit 0 and bit 4 in xEventGroup. */
-	  xResult = xEventGroupSetBitsFromISR(
-								  _eventHandle,  /* The event group being updated. */
-								  _EVENT_SAMPLE_FINISH, /* The bits being set. */
-								  &xHigherPriorityTaskWoken);
-
-	  /* Was the message posted successfully? */
-	  if( xResult != pdFAIL )
-	  {
-		  /* If xHigherPriorityTaskWoken is now set to pdTRUE then a context
-		  switch should be requested.  The macro used is port specific and will
-		  be either portYIELD_FROM_ISR() or portEND_SWITCHING_ISR() - refer to
-		  the documentation page for the port being used. */
-		  portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
-	  }
+    	osSignalSet(_sampleTid, _EVENT_SAMPLE_FINISH);
     }
 }
 
@@ -191,31 +173,24 @@ uint32_t _CalcDmaBufAverage(void)
 	return sum / 20;
 }
 
-void Audio_SampleTask(void *args)
+void Audio_SampleTask(void const *args)
 {
-	EventBits_t events;
-
-	_eventHandle = xEventGroupCreate();
+	osEvent event;
 
 //	DEBUG_MSG("audio sample start...\n");
 
 	while(1)
 	{
 		_SampleStart();
-		events = xEventGroupWaitBits(
-				_eventHandle,
-				_EVENT_SAMPLE_FINISH,
-				pdTRUE,
-				pdFALSE,
-				UTILS_MS_TICKS(100));
-		if((events & _EVENT_SAMPLE_FINISH) == 0)
+		event = osSignalWait(_EVENT_SAMPLE_FINISH, 100);
+		if(event.status != osEventSignal)
 		{
 			_SampleStop();
 			continue;
 		}
 
-		printf("audio average: %lu\n", _CalcDmaBufAverage());
-		Utils_DelayMs(500);
+		printf("1234\r5%lu\n", _CalcDmaBufAverage());
+		osDelay(500);
 
 	}
 }
