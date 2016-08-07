@@ -77,6 +77,13 @@ char Serial_GetChar(void)
 	return '\0';
 }
 
+/* Determine whether we are in thread mode or handler mode. */
+static inline int _IsInHandlerMode (void)
+{
+  return __get_IPSR() != 0;
+}
+
+
 void Serial_PutChar(char c)
 {
 #if USE_SAFE_PUT_CHAR
@@ -88,13 +95,21 @@ void Serial_PutChar(char c)
 			Serial_PutChar('\r');
 		}
 #if USE_CIRCULAR_BUFFER
-		int8_t ret;
-
-		ret = CBUF_Write(& _txCtrl, & c);
-		if((ret == 0) && (! _isTransmitting))
+		if(_IsInHandlerMode())
 		{
-			_isTransmitting = true;
-			USART_ITConfig(USART1, USART_IT_TXE, ENABLE);
+			USART_SendData(USART1, c);
+			while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+		}
+		else
+		{
+			int8_t ret;
+
+			ret = CBUF_Write(& _txCtrl, & c);
+			if((ret == 0) && (! _isTransmitting))
+			{
+				_isTransmitting = true;
+				USART_ITConfig(USART1, USART_IT_TXE, ENABLE);
+			}
 		}
 #else
 		USART_SendData(USART1, c);

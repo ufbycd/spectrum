@@ -10,13 +10,24 @@
 #include <string.h>
 
 
+// 帧频率发生是否用硬件定时器
+// 否则用软件定时器
+// XXX 此功能目前不稳定
+#define HARD_WARE_TIMER_FOR_FRAME 0
+
 // 采样频率（Hz）
 #define SAMPLE_FREQ 40000u
+
+// 帧频率（Hz）
+#define FRAME_FREQ  25u
+// 帧周期时长（ms）
+#define FRAME_T		 (1000u / FRAME_FREQ)
 
 #define DMA_BUFFER_SIZE     256
 static int16_t _dmaBuf[DMA_BUFFER_SIZE];
 
 #define _EVENT_SAMPLE_FINISH 0x1
+#define _EVENT_FRAME_BEGIN   (0x1 << 2)
 
 static osThreadId _sampleTid;
 
@@ -24,6 +35,11 @@ static void _AdcInit(void);
 static void _AdcGpioInit(void);
 static void _AdcDmaInit(void);
 static void _AdcTimerInit(void);
+#if HARD_WARE_TIMER_FOR_FRAME
+static void _FrameTimerInit(void);
+static inline void _FrameTimerStart(void);
+#endif
+static void _SampleTask(void const *args);
 
 void Audio_Init(void)
 {
@@ -31,9 +47,11 @@ void Audio_Init(void)
     _AdcDmaInit();             //
     _AdcInit();               // 注意此处的初始化顺序，否则采样传输的数据容易出现数据错位的结果
     _AdcTimerInit();           //
+#if HARD_WARE_TIMER_FOR_FRAME
+    _FrameTimerInit();
+#endif
 
-
-    osThreadDef(audio, Audio_SampleTask, osPriorityHigh, 0, 256);
+    osThreadDef(audio, _SampleTask, osPriorityHigh, 0, 256);
     _sampleTid = osThreadCreate(osThread(audio), NULL);
 }
 
@@ -86,8 +104,8 @@ static void _AdcDmaInit(void)
     nvicConfig.NVIC_IRQChannel = DMA1_Channel1_IRQn;       //选择DMA1通道中断
     nvicConfig.NVIC_IRQChannelCmd = ENABLE;                //中断使能
     // 中断内调用FreeRTOS函数，则需大于或等于此值
-    nvicConfig.NVIC_IRQChannelPreemptionPriority = configMAX_SYSCALL_INTERRUPT_PRIORITY;
-    nvicConfig.NVIC_IRQChannelSubPriority = 0;
+    nvicConfig.NVIC_IRQChannelPreemptionPriority = configMAX_SYSCALL_INTERRUPT_PRIORITY + 1;
+    nvicConfig.NVIC_IRQChannelSubPriority = 5;
     NVIC_Init(&nvicConfig);
 
     DMA_StructInit(&dmaConfig);                            //初始化DMA结构体
@@ -125,24 +143,77 @@ static void _AdcTimerInit(void)
     timerConfig.TIM_RepetitionCounter = 0x00;              //发生0+1次update事件产生中断
     TIM_TimeBaseInit(TIM3, &timerConfig);
 
-    TIM_ITConfig(TIM3, TIM_IT_Update, DISABLE);              // 自动触发不需要中断处理
     TIM_SelectOutputTrigger(TIM3, TIM_TRGOSource_Update);   //选择TIM3的update事件更新为触发源
 }
 
+#if HARD_WARE_TIMER_FOR_FRAME
+static void _FrameTimerInit(void)
+{
+    TIM_TimeBaseInitTypeDef timerConfig;
+    NVIC_InitTypeDef nvicConfig;
+
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE); //使能TIM4时钟
+
+    nvicConfig.NVIC_IRQChannel = TIM4_IRQn;       		 //选择中断通道
+    nvicConfig.NVIC_IRQChannelCmd = ENABLE;              //中断使能
+    // 中断内调用FreeRTOS函数，则需大于或等于此值
+    nvicConfig.NVIC_IRQChannelPreemptionPriority = configMAX_SYSCALL_INTERRUPT_PRIORITY + 1;
+    nvicConfig.NVIC_IRQChannelSubPriority = 4;
+    NVIC_Init(&nvicConfig);
+
+//    TIM_TimeBaseStructInit(&timerConfig);                //初始化TIMBASE结构体
+    timerConfig.TIM_ClockDivision = TIM_CKD_DIV1;          // 时钟分频
+    // 预分频，计数速度100KHz
+    timerConfig.TIM_Prescaler = (SystemCoreClock / 100000u) - 1;
+    //  频率： FRAME_FREQ = SystemCoreClock / 4 / （Prescaler + 1） / Period
+    timerConfig.TIM_Period = 100000u / FRAME_FREQ;
+    timerConfig.TIM_CounterMode = TIM_CounterMode_Up;      //向上计数模式
+    timerConfig.TIM_RepetitionCounter = 0x00;              //发生0+1次update事件产生中断
+    TIM_TimeBaseInit(TIM4, &timerConfig);
+
+    TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
+    TIM_ITConfig(TIM4, TIM_IT_Update, ENABLE);              // 开启中断
+}
+
+static inline void _FrameTimerStart(void)
+{
+    TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
+    TIM_Cmd(TIM4, ENABLE);
+}
+
+static inline void _FrameTimerStop(void)
+{
+	TIM_Cmd(TIM4, DISABLE);
+}
+#endif
+
 inline static void _SampleStart(void)
 {
-	memset(_dmaBuf, 0, sizeof(_dmaBuf));
+//	memset(_dmaBuf, 0, sizeof(_dmaBuf));
 
 	TIM_Cmd(TIM3, ENABLE);
     DMA_ClearITPendingBit(DMA_IT_TC);               //清除一次DMA中断标志
     DMA_Cmd(DMA1_Channel1, ENABLE);                 //使能DMA1
+    ADC_Cmd(ADC1, ENABLE);
 }
 
 inline static void _SampleStop(void)
 {
+	ADC_Cmd(ADC1, DISABLE);
 	TIM_Cmd(TIM3, DISABLE);
 	DMA_Cmd(DMA1_Channel1, DISABLE);
 }
+
+#if HARD_WARE_TIMER_FOR_FRAME
+void TIM4_IRQHandler(void)
+{
+    if(TIM_GetITStatus(TIM4, TIM_IT_Update))
+    {
+        TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
+        osSignalSet(_sampleTid, _EVENT_FRAME_BEGIN);
+    }
+}
+#endif
 
 void TIM3_IRQHandler(void)
 {
@@ -176,24 +247,55 @@ uint32_t _CalcDmaBufAverage(void)
 	return sum / 20;
 }
 
-void Audio_SampleTask(void const *args)
+#if ! HARD_WARE_TIMER_FOR_FRAME
+static void _OnFrameBegin(void const *args)
+{
+	osSignalSet(_sampleTid, _EVENT_FRAME_BEGIN);
+}
+#endif
+
+static void _SampleTask(void const *args)
 {
 	osEvent event;
 
-//	DEBUG_MSG("audio sample start...\n");
+#if ! HARD_WARE_TIMER_FOR_FRAME
+	osTimerId timid;
+
+	osTimerDef(frameTimer, _OnFrameBegin);
+	timid = osTimerCreate(osTimer(frameTimer), osTimerPeriodic, NULL);
+	osTimerStart(timid, FRAME_T);
+#else
+	_FrameTimerStart();
+#endif
 
 	while(1)
 	{
+		event = osSignalWait(_EVENT_FRAME_BEGIN, FRAME_T + 2);
+		configASSERT(event.status == osEventSignal);
 		_SampleStart();
-		event = osSignalWait(_EVENT_SAMPLE_FINISH, 100);
+
+		event = osSignalWait(_EVENT_SAMPLE_FINISH, FRAME_T);
 		if(event.status != osEventSignal)
 		{
+			configASSERT(false);
 			_SampleStop();
 			continue;
 		}
 
 		printf("%lu\n", _CalcDmaBufAverage());
-		osDelay(500);
+//		osDelay(500);
 
 	}
 }
+
+static void _DataProcessTask(void const *args)
+{
+
+
+	while(1)
+	{
+
+	}
+}
+
+

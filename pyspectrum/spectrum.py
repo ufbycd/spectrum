@@ -5,28 +5,6 @@ import time
 import random
 import signal
 import threading
-import queue
-
-
-def update(screen, data_list):
-    for i, d in enumerate(data_list):
-        screen.addstr(1 + i, 1, '■' * d)
-        
-def randomData():
-    dataList = []
-    for _ in range(32):
-        dataList.append(random.Random().randint(0, 32))
-    return dataList
-
-def sq(screen, event):
-    for _ in range(300):
-        if event.isSet():
-            break
-        screen.clear()
-        update(screen, randomData())
-        screen.refresh()
-        time.sleep(0.04)
-        
 
 class Spectrum:
     

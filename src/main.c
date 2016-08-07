@@ -40,9 +40,6 @@ static void _Init(void)
 {
 
     NVIC_PriorityGroupConfig( NVIC_PriorityGroup_4 );
-
-    /* Configure HCLK clock as SysTick clock source. */
-    SysTick_CLKSourceConfig( SysTick_CLKSource_HCLK );
 }
 
 static void _test(void)
@@ -54,29 +51,16 @@ static void _test(void)
 
 void vTaskA( void const *pvParameters)
 {
-//    ON_DEBUG(uint i = 0);
-    uint td = *((uint *) pvParameters);
-//    ON_DEBUG(TaskHandle_t myHandle);
-//    ON_DEBUG(const char * myName);
-//
-//    ON_DEBUG(myHandle = xTaskGetCurrentTaskHandle());
-//    ON_DEBUG(myName = pcTaskGetName(myHandle));
 
     while(1)
     {
         Led_Trigger();
-//        MDEBUG_COLOR(GREEN, "%s: %u\n", myName, i++);
-//        ON_DEBUG(printf("TaskA: %u\n", i++));
-        osDelay(td);
+        osDelay(500);
     }
 }
 
 int main(int argc, char* argv[])
 {
-	static uint tad = 513;
-//	static uint tbd = 987;
-//	static uint tcd = 1743;
-
     _Init();
     Led_Init();
     Serial_Init();
@@ -85,8 +69,8 @@ int main(int argc, char* argv[])
     DEBUG_MSG("\nSystem start.\n");
     _test();
 
-    osThreadDef(defaultTask, vTaskA, osPriorityNormal, 0, 128);
-    osThreadCreate(osThread(defaultTask), & tad);
+    osThreadDef(defaultTask, vTaskA, osPriorityNormal, 0, 64);
+    osThreadCreate(osThread(defaultTask), NULL);
 
     /* Start the scheduler. */
     osKernelStart();
@@ -95,7 +79,7 @@ int main(int argc, char* argv[])
      idle task. */
     DEBUG_MSG("OS Failed!\n");
     Led_Trigger();
-    exit(-1);
+    exit(EXIT_FAILURE);
 
     return EXIT_FAILURE;
 }
