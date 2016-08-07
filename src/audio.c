@@ -11,7 +11,7 @@
 
 
 // 采样频率（Hz）
-#define SAMPLE_FREQ 44000u
+#define SAMPLE_FREQ 40000u
 
 #define DMA_BUFFER_SIZE     256
 static int16_t _dmaBuf[DMA_BUFFER_SIZE];
@@ -28,8 +28,8 @@ static void _AdcTimerInit(void);
 void Audio_Init(void)
 {
     _AdcGpioInit();
-    _AdcInit();               // 注意此处的初始化顺序，否则采样传输的数据容易出现数据错位的结果
     _AdcDmaInit();             //
+    _AdcInit();               // 注意此处的初始化顺序，否则采样传输的数据容易出现数据错位的结果
     _AdcTimerInit();           //
 
 
@@ -42,15 +42,16 @@ static void _AdcInit(void)
     ADC_InitTypeDef adcConfig;
 
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
-    RCC_ADCCLKConfig(RCC_PCLK2_Div6); // 72MHz / 6 = 12MHz ADC速度
+    RCC_ADCCLKConfig(RCC_PCLK2_Div6); // 72MHz / 6 = 12MHz ADC时钟速度
 
     ADC_DeInit(ADC1);           //复位ADC
     ADC_StructInit(&adcConfig);
     //外部触发设置为TIM3
     adcConfig.ADC_ExternalTrigConv = ADC_ExternalTrigConv_T3_TRGO;
     ADC_Init(ADC1, &adcConfig);
-    //配置采样通道，采样时间125nS
-    ADC_RegularChannelConfig(ADC1, ADC_Channel_2, 1, ADC_SampleTime_55Cycles5);
+    // 4000KHz采样率要求的一笔采样的时间最多为 1000000us / 4000KHz = 25us
+    // 则一笔ADC最大的采样周期数为 25us / (1000000us / 12MHz) - 12.5 = 287.5 (cycle)
+    ADC_RegularChannelConfig(ADC1, ADC_Channel_2, 1, ADC_SampleTime_239Cycles5);
     ADC_Cmd(ADC1, ENABLE);
 
     /* Enable ADC1 reset calibaration register */
@@ -115,14 +116,16 @@ static void _AdcTimerInit(void)
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);   //使能TIM3时钟
 
 //    TIM_TimeBaseStructInit(&timerConfig);                //初始化TIMBASE结构体
-    timerConfig.TIM_ClockDivision = TIM_CKD_DIV1;          //系统时钟，不分频，48M
+    timerConfig.TIM_ClockDivision = TIM_CKD_DIV1;          //系统时钟，不分频
+    // 预分频，计数速度1000KHz
+    timerConfig.TIM_Prescaler = (SystemCoreClock / 1000000u) - 1;
+    //  采样频率： SAMPLE_FREQ = SystemCoreClock / （Prescaler + 1） / Period
+    timerConfig.TIM_Period = 1000000u / SAMPLE_FREQ;
     timerConfig.TIM_CounterMode = TIM_CounterMode_Up;      //向上计数模式
-    timerConfig.TIM_Period = 312;                          //每312 uS触发一次中断，开启ADC
-    timerConfig.TIM_Prescaler = 48-1;                      //计数时钟预分频，f＝1M，systick＝1 uS
     timerConfig.TIM_RepetitionCounter = 0x00;              //发生0+1次update事件产生中断
     TIM_TimeBaseInit(TIM3, &timerConfig);
 
-    TIM_ITConfig(TIM3, TIM_IT_Update, ENABLE);              //使能TIM3中断
+    TIM_ITConfig(TIM3, TIM_IT_Update, DISABLE);              // 自动触发不需要中断处理
     TIM_SelectOutputTrigger(TIM3, TIM_TRGOSource_Update);   //选择TIM3的update事件更新为触发源
 }
 
@@ -189,7 +192,7 @@ void Audio_SampleTask(void const *args)
 			continue;
 		}
 
-		printf("1234\r5%lu\n", _CalcDmaBufAverage());
+		printf("%lu\n", _CalcDmaBufAverage());
 		osDelay(500);
 
 	}
