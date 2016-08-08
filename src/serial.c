@@ -46,7 +46,7 @@ void Serial_Init(void)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
 
 	nvicConfig.NVIC_IRQChannel = USART1_IRQn;
-	nvicConfig.NVIC_IRQChannelPreemptionPriority = configMAX_SYSCALL_INTERRUPT_PRIORITY + 1;
+	nvicConfig.NVIC_IRQChannelPreemptionPriority = configMAX_SYSCALL_INTERRUPT_PRIORITY - 1;
 	nvicConfig.NVIC_IRQChannelSubPriority = 8;
 	nvicConfig.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(& nvicConfig);
