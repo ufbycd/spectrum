@@ -6,8 +6,12 @@
  */
 
 #include "audio.h"
+#include "stm32_dsp.h"
 #include "utils.h"
+
 #include <string.h>
+#include <stdlib.h>
+#include <math.h>
 
 
 // 帧频率发生是否用硬件定时器
@@ -22,6 +26,12 @@
 #define FRAME_FREQ  25u
 // 帧周期时长（ms）
 #define FRAME_T		 (1000u / FRAME_FREQ)
+
+// ADC的有效位数
+#define ADC_BITS    12
+
+// 运放输出（ADC输入）信号包含vcc/2的直流移置
+#define DC_OFFSET  ((1 << ADC_BITS) / 2)
 
 #define FFT_POINTS          256u
 #define DMA_BUFFER_lEN     FFT_POINTS
@@ -315,7 +325,7 @@ static void _SampleTask(void const *args)
 
 			for(i = 0; i < FFT_POINTS; i++)
 			{
-				fftInBuf[i].real = _dmaBuf[i] - 2048;
+				fftInBuf[i].real = _dmaBuf[i] - DC_OFFSET;
 				fftInBuf[i].imaginary = 0;
 			}
 
@@ -333,6 +343,14 @@ static void _DataProcessTask(void const *args)
 {
 	osEvent event;
 	complex_t *fftInBuf;
+	complex_t *fftOutBuf, fftOut;
+	float  *powerBuf, power;
+
+	fftOutBuf = malloc(FFT_POINTS * sizeof(complex_t));
+	configASSERT(fftOutBuf);
+
+	powerBuf = malloc(64 * sizeof(float));
+	configASSERT(powerBuf);
 
 	while(1)
 	{
@@ -345,12 +363,23 @@ static void _DataProcessTask(void const *args)
 		fftInBuf = Util_ResourceGet(_fftInResource, osWaitForever);
 		if(fftInBuf != NULL)
 		{
-			int32_t sum;
+			int i;
 
-			sum = _CalcDmaBufAverage(fftInBuf);
+			cr4_fft_256_stm32(fftOutBuf, fftInBuf, FFT_POINTS);
 			Util_ResourceRelease(_fftInResource);
 
-			printf("%ld\n", sum);
+			for(i = 0; i < 64; i++)
+			{
+				fftOut = fftOutBuf[i + 1];
+				power = fftOut.real * fftOut.real +
+						fftOut.imaginary * fftOut.imaginary;
+				powerBuf[i] = power;
+			}
+
+//			printf("%d %d %d\n",
+//					(int)(powerBuf[10]),
+//					(int)(powerBuf[30]),
+//					(int)(powerBuf[60]));
 		}
 		else
 		{

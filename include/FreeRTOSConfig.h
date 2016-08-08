@@ -111,6 +111,7 @@
 #define configUSE_MUTEXES                        1
 #define configQUEUE_REGISTRY_SIZE                8
 #define configUSE_TICKLESS_IDLE                  1
+#define configCHECK_FOR_STACK_OVERFLOW    		  0
 
 /* Co-routine definitions. */
 #define configUSE_CO_ROUTINES                    1
