@@ -35,6 +35,7 @@
 
 
 #define TEST_ASSERT 0
+#define TEST_TASK   1
 
 static void _Init(void)
 {
@@ -42,14 +43,8 @@ static void _Init(void)
     NVIC_PriorityGroupConfig( NVIC_PriorityGroup_4 );
 }
 
-static void _test(void)
-{
-#if TEST_ASSERT
-	assert(false);
-#endif
-}
-
-void vTaskA( void const *pvParameters)
+#if TEST_TASK
+static void _TestTask( void const *pvParameters)
 {
 
     while(1)
@@ -57,6 +52,19 @@ void vTaskA( void const *pvParameters)
         Led_Trigger();
         osDelay(500);
     }
+}
+#endif
+
+static void _test(void)
+{
+#if TEST_ASSERT
+	assert(false);
+#endif
+
+#if TEST_TASK
+    osThreadDef(test, _TestTask, osPriorityNormal, 0, 64);
+    osThreadCreate(osThread(test), NULL);
+#endif
 }
 
 int main(int argc, char* argv[])
@@ -69,16 +77,12 @@ int main(int argc, char* argv[])
     DEBUG_MSG("\nSystem start.\n");
     _test();
 
-    osThreadDef(defaultTask, vTaskA, osPriorityNormal, 0, 64);
-    osThreadCreate(osThread(defaultTask), NULL);
-
     /* Start the scheduler. */
     osKernelStart();
 
     /* Will only get here if there was not enough heap space to create the
      idle task. */
     DEBUG_MSG("OS Failed!\n");
-    Led_Trigger();
     exit(EXIT_FAILURE);
 
     return EXIT_FAILURE;

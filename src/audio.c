@@ -6,7 +6,7 @@
  */
 
 #include "audio.h"
-
+#include "utils.h"
 #include <string.h>
 
 
@@ -23,13 +23,31 @@
 // 帧周期时长（ms）
 #define FRAME_T		 (1000u / FRAME_FREQ)
 
-#define DMA_BUFFER_SIZE     256
-static int16_t _dmaBuf[DMA_BUFFER_SIZE];
+#define FFT_POINTS          256u
+#define DMA_BUFFER_lEN     FFT_POINTS
+static int16_t _dmaBuf[DMA_BUFFER_lEN];
 
 #define _EVENT_SAMPLE_FINISH 0x1
-#define _EVENT_FRAME_BEGIN   (0x1 << 2)
+#define _EVENT_FRAME_BEGIN   (0x1 << 1)
+#define _EVENT_FFT_IN_FILL   (0x1 << 2)
+
+
+
+typedef union _complex
+{
+	long iTotal;
+	unsigned uTotal;
+	struct
+	{
+		int16_t real;
+		int16_t imaginary;
+	};
+} complex_t;
+
 
 static osThreadId _sampleTid;
+static osThreadId _processTid;
+static Util_ResourceHandle_t _fftInResource;
 
 static void _AdcInit(void);
 static void _AdcGpioInit(void);
@@ -40,9 +58,13 @@ static void _FrameTimerInit(void);
 static inline void _FrameTimerStart(void);
 #endif
 static void _SampleTask(void const *args);
+static void _DataProcessTask(void const *args);
 
 void Audio_Init(void)
 {
+	configASSERT(sizeof(complex_t) == sizeof(long));
+	_fftInResource = Util_ResourceCreate(FFT_POINTS * sizeof(complex_t));
+
     _AdcGpioInit();
     _AdcDmaInit();             //
     _AdcInit();               // 注意此处的初始化顺序，否则采样传输的数据容易出现数据错位的结果
@@ -51,8 +73,11 @@ void Audio_Init(void)
     _FrameTimerInit();
 #endif
 
-    osThreadDef(audio, _SampleTask, osPriorityHigh, 0, 256);
+    osThreadDef(audio, _SampleTask, osPriorityRealtime, 0, 128);
     _sampleTid = osThreadCreate(osThread(audio), NULL);
+
+    osThreadDef(process, _DataProcessTask, osPriorityLow, 0, 512);
+    _processTid = osThreadCreate(osThread(process), NULL);
 }
 
 static void _AdcInit(void)
@@ -104,15 +129,15 @@ static void _AdcDmaInit(void)
     nvicConfig.NVIC_IRQChannel = DMA1_Channel1_IRQn;       //选择DMA1通道中断
     nvicConfig.NVIC_IRQChannelCmd = ENABLE;                //中断使能
     // 中断内调用FreeRTOS函数，则需大于或等于此值
-    nvicConfig.NVIC_IRQChannelPreemptionPriority = configMAX_SYSCALL_INTERRUPT_PRIORITY + 1;
-    nvicConfig.NVIC_IRQChannelSubPriority = 5;
+    nvicConfig.NVIC_IRQChannelPreemptionPriority = configMAX_SYSCALL_INTERRUPT_PRIORITY;
+    nvicConfig.NVIC_IRQChannelSubPriority = 0;
     NVIC_Init(&nvicConfig);
 
     DMA_StructInit(&dmaConfig);                            //初始化DMA结构体
-    dmaConfig.DMA_BufferSize = DMA_BUFFER_SIZE;            //DMA缓存数组大小设置
+    dmaConfig.DMA_BufferSize = DMA_BUFFER_lEN;            //DMA缓存数组大小设置
     dmaConfig.DMA_DIR = DMA_DIR_PeripheralSRC;             //DMA方向：外设作为数据源
     dmaConfig.DMA_M2M = DISABLE;                           //内存到内存禁用
-    dmaConfig.DMA_MemoryBaseAddr = (uint32_t)&_dmaBuf[0];//缓存数据数组起始地址
+    dmaConfig.DMA_MemoryBaseAddr = (uint32_t)& _dmaBuf[0];//缓存数据数组起始地址
     dmaConfig.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;//数据大小设置为Halfword
     dmaConfig.DMA_MemoryInc = DMA_MemoryInc_Enable;        //内存地址递增
     dmaConfig.DMA_Mode = DMA_Mode_Circular;                //DMA循环模式，即完成后重新开始覆盖
@@ -157,8 +182,8 @@ static void _FrameTimerInit(void)
     nvicConfig.NVIC_IRQChannel = TIM4_IRQn;       		 //选择中断通道
     nvicConfig.NVIC_IRQChannelCmd = ENABLE;              //中断使能
     // 中断内调用FreeRTOS函数，则需大于或等于此值
-    nvicConfig.NVIC_IRQChannelPreemptionPriority = configMAX_SYSCALL_INTERRUPT_PRIORITY + 1;
-    nvicConfig.NVIC_IRQChannelSubPriority = 4;
+    nvicConfig.NVIC_IRQChannelPreemptionPriority = configMAX_SYSCALL_INTERRUPT_PRIORITY;
+    nvicConfig.NVIC_IRQChannelSubPriority = 0;
     NVIC_Init(&nvicConfig);
 
 //    TIM_TimeBaseStructInit(&timerConfig);                //初始化TIMBASE结构体
@@ -233,15 +258,15 @@ void DMA1_Channel1_IRQHandler(void)
     }
 }
 
-uint32_t _CalcDmaBufAverage(void)
+int32_t _CalcDmaBufAverage(complex_t *buf)
 {
 	unsigned  i;
-	uint32_t sum;
+	int32_t sum;
 
 	sum = 0;
-	for(i = 0; i < 20; i++)
+	for(i = 1; i < 21; i++)
 	{
-		sum += _dmaBuf[i];
+		sum += buf[i].real;
 	}
 
 	return sum / 20;
@@ -257,6 +282,7 @@ static void _OnFrameBegin(void const *args)
 static void _SampleTask(void const *args)
 {
 	osEvent event;
+	complex_t *fftInBuf;
 
 #if ! HARD_WARE_TIMER_FOR_FRAME
 	osTimerId timid;
@@ -270,11 +296,11 @@ static void _SampleTask(void const *args)
 
 	while(1)
 	{
-		event = osSignalWait(_EVENT_FRAME_BEGIN, FRAME_T + 2);
+		event = osSignalWait(_EVENT_FRAME_BEGIN, osWaitForever);
 		configASSERT(event.status == osEventSignal);
 		_SampleStart();
 
-		event = osSignalWait(_EVENT_SAMPLE_FINISH, FRAME_T);
+		event = osSignalWait(_EVENT_SAMPLE_FINISH, osWaitForever);
 		if(event.status != osEventSignal)
 		{
 			configASSERT(false);
@@ -282,18 +308,54 @@ static void _SampleTask(void const *args)
 			continue;
 		}
 
-		printf("%lu\n", _CalcDmaBufAverage());
-//		osDelay(500);
+		fftInBuf = Util_ResourceGet(_fftInResource, osWaitForever);
+		if(fftInBuf)
+		{
+			unsigned i;
 
+			for(i = 0; i < FFT_POINTS; i++)
+			{
+				fftInBuf[i].real = _dmaBuf[i] - 2048;
+				fftInBuf[i].imaginary = 0;
+			}
+
+			Util_ResourceRelease(_fftInResource);
+			osSignalSet(_processTid, _EVENT_FFT_IN_FILL);
+		}
+		else
+		{
+			Util_ResourceRelease(_fftInResource);
+		}
 	}
 }
 
 static void _DataProcessTask(void const *args)
 {
-
+	osEvent event;
+	complex_t *fftInBuf;
 
 	while(1)
 	{
+		event = osSignalWait(_EVENT_FFT_IN_FILL, osWaitForever);
+		if(event.status != osEventSignal)
+		{
+			continue;
+		}
+
+		fftInBuf = Util_ResourceGet(_fftInResource, osWaitForever);
+		if(fftInBuf != NULL)
+		{
+			int32_t sum;
+
+			sum = _CalcDmaBufAverage(fftInBuf);
+			Util_ResourceRelease(_fftInResource);
+
+			printf("%ld\n", sum);
+		}
+		else
+		{
+			Util_ResourceRelease(_fftInResource);
+		}
 
 	}
 }
