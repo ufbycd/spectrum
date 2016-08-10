@@ -110,7 +110,7 @@
 #define configUSE_16_BIT_TICKS                   0
 #define configUSE_MUTEXES                        1
 #define configQUEUE_REGISTRY_SIZE                8
-#define configUSE_TICKLESS_IDLE                  1
+#define configUSE_TICKLESS_IDLE                  0
 #define configCHECK_FOR_STACK_OVERFLOW    		  0
 
 /* Co-routine definitions. */
@@ -189,8 +189,8 @@ void PostSleepProcessing(uint32_t *ulExpectedIdleTime);
 allow the application writer to add additional code before and after the MCU is
 placed into the low power state respectively. */
 #if configUSE_TICKLESS_IDLE == 1 
-#define configPRE_SLEEP_PROCESSING                        PreSleepProcessing
-#define configPOST_SLEEP_PROCESSING                       PostSleepProcessing
+#define configPRE_SLEEP_PROCESSING(t)                        PreSleepProcessing(& (t))
+#define configPOST_SLEEP_PROCESSING(t)                       PostSleepProcessing(& (t))
 #endif /* configUSE_TICKLESS_IDLE == 1 */
 
 #endif /* FREERTOS_CONFIG_H */

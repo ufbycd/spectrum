@@ -17,7 +17,7 @@
 // 帧频率发生是否用硬件定时器
 // 否则用软件定时器
 // XXX 此功能目前不稳定
-#define HARD_WARE_TIMER_FOR_FRAME 0
+#define HARD_WARE_TIMER_FOR_FRAME 1
 
 // 采样频率（Hz）
 #define SAMPLE_FREQ 40000u
