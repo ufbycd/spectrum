@@ -13,28 +13,28 @@
 #if configCHECK_FOR_STACK_OVERFLOW
 void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
 {
-	printf("Task: %s stack overflow!\n", pcTaskName);
+	DEBUG_MSG("Task: %s stack overflow!\n", pcTaskName);
 }
 #endif
 
 void HardFault_Handler_C (ExceptionStackFrame* frame __attribute__((unused)),
         uint32_t lr __attribute__((unused)))
 {
-	puts("Hard Fault");
+	DEBUG_MSG("Hard Fault\n");
 	exit(-1);
 }
 
 void UsageFault_Handler_C (ExceptionStackFrame* frame __attribute__((unused)),
         uint32_t lr __attribute__((unused)))
 {
-	puts("Usage Fault");
+	DEBUG_MSG("Usage Fault\n");
 	exit(-1);
 }
 
 void BusFault_Handler_C (ExceptionStackFrame* frame __attribute__((unused)),
                     uint32_t lr __attribute__((unused)))
 {
-	puts("Bus Fault");
+	DEBUG_MSG("Bus Fault\n");
 	exit(-1);
 }
 

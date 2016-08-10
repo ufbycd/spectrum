@@ -12,7 +12,7 @@
 
 struct Util_Resource
 {
-	uint flags;
+	unsigned int flags;
 	osSemaphoreId semhr;
 	void *buf;
 	size_t size;

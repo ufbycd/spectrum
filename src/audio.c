@@ -220,6 +220,15 @@ static inline void _FrameTimerStop(void)
 {
 	TIM_Cmd(TIM4, DISABLE);
 }
+
+void TIM4_IRQHandler(void)
+{
+    if(TIM_GetITStatus(TIM4, TIM_IT_Update))
+    {
+        TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
+        osSignalSet(_sampleTid, _EVENT_FRAME_BEGIN);
+    }
+}
 #endif
 
 inline static void _SampleStart(void)
@@ -238,17 +247,6 @@ inline static void _SampleStop(void)
 	TIM_Cmd(TIM3, DISABLE);
 	DMA_Cmd(DMA1_Channel1, DISABLE);
 }
-
-#if HARD_WARE_TIMER_FOR_FRAME
-void TIM4_IRQHandler(void)
-{
-    if(TIM_GetITStatus(TIM4, TIM_IT_Update))
-    {
-        TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
-        osSignalSet(_sampleTid, _EVENT_FRAME_BEGIN);
-    }
-}
-#endif
 
 void TIM3_IRQHandler(void)
 {
@@ -428,7 +426,7 @@ static void _DataProcessTask(void const *args)
 			}
 //			printf("\n");
 
-			printf("%.2f %.2f %.2f\n",
+			DEBUG_MSG("%.2f %.2f %.2f\n",
 					(double)(powerBuf[0]),
 					(double)(powerBuf[30]),
 					(double)(powerBuf[60]));

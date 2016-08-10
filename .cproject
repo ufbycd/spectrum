@@ -57,7 +57,6 @@
 									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/include"/>
 									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/portable/GCC/ARM_CM3"/>
 									<listOptionValue builtIn="false" value="../include/utils"/>
-									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/CMSIS_RTOS"/>
 									<listOptionValue builtIn="false" value="../system/include/cortexm"/>
 								</option>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.defs.1513559266" name="Defined symbols (-D)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.defs" valueType="definedSymbols">
@@ -79,7 +78,6 @@
 									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/include"/>
 									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/portable/GCC/ARM_CM3"/>
 									<listOptionValue builtIn="false" value="../include/utils"/>
-									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/CMSIS_RTOS"/>
 									<listOptionValue builtIn="false" value="../system/include/cortexm"/>
 								</option>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.defs.2108708462" name="Defined symbols (-D)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.defs" useByScannerDiscovery="false" valueType="definedSymbols">
@@ -101,7 +99,6 @@
 									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/include"/>
 									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/portable/GCC/ARM_CM3"/>
 									<listOptionValue builtIn="false" value="../include/utils"/>
-									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/CMSIS_RTOS"/>
 									<listOptionValue builtIn="false" value="../system/include/cortexm"/>
 								</option>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions.643606946" name="Do not use exceptions (-fno-exceptions)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions" useByScannerDiscovery="true" value="true" valueType="boolean"/>
@@ -232,7 +229,6 @@
 									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/include"/>
 									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/portable/GCC/ARM_CM3"/>
 									<listOptionValue builtIn="false" value="../include/utils"/>
-									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/CMSIS_RTOS"/>
 									<listOptionValue builtIn="false" value="../system/include/cortexm"/>
 								</option>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.defs.962982897" name="Defined symbols (-D)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.defs" useByScannerDiscovery="false" valueType="definedSymbols">
@@ -252,7 +248,6 @@
 									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/include"/>
 									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/portable/GCC/ARM_CM3"/>
 									<listOptionValue builtIn="false" value="../include/utils"/>
-									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/CMSIS_RTOS"/>
 									<listOptionValue builtIn="false" value="../system/include/cortexm"/>
 								</option>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.defs.1683965251" name="Defined symbols (-D)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.defs" useByScannerDiscovery="false" valueType="definedSymbols">
@@ -272,7 +267,6 @@
 									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/include"/>
 									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/portable/GCC/ARM_CM3"/>
 									<listOptionValue builtIn="false" value="../include/utils"/>
-									<listOptionValue builtIn="false" value="../system/FreeRTOS/Source/CMSIS_RTOS"/>
 									<listOptionValue builtIn="false" value="../system/include/cortexm"/>
 								</option>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions.781599983" name="Do not use exceptions (-fno-exceptions)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions" useByScannerDiscovery="true" value="true" valueType="boolean"/>
