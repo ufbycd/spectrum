@@ -10,7 +10,7 @@
 #include "semphr.h"
 
 // XXX 目前此功能异常
-#define USE_CIRCULAR_BUFFER 0
+#define USE_CIRCULAR_BUFFER 1
 
 // XXX 目前使用此功能有异常
 #define USE_SAFE_PUT_CHAR 0
@@ -96,12 +96,12 @@ void Serial_PutChar(char c)
 			Serial_PutChar('\r');
 		}
 #if USE_CIRCULAR_BUFFER
-//		if(_IsInHandlerMode())
-//		{
-//			USART_SendData(USART1, c);
-//			while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
-//		}
-//		else
+		if(_IsInHandlerMode())
+		{
+			USART_SendData(USART1, c);
+			while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+		}
+		else
 		{
 			int8_t ret;
 

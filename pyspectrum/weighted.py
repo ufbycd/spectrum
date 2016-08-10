@@ -1,9 +1,14 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
 '''
 Created on 2016年8月9日
 
 @author: chenss
 '''
 import math
+
+import octave
 
 def frange(x, y, jump):
     while x < y:
@@ -22,6 +27,6 @@ def ARate(freq_list):
     print(aList)
 
 if __name__ == '__main__':
-    freq_list = [freq for freq in frange(312.5, 20000 + 312.5, 312.5)]
+    freq_list = octave.MY_FREQS
     print(freq_list)
     ARate(freq_list)

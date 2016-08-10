@@ -20,7 +20,13 @@
 #define HARD_WARE_TIMER_FOR_FRAME 1
 
 // 采样频率（Hz）
-#define SAMPLE_FREQ 40000u
+#define SAMPLE_FREQ   40960
+
+// FFT 点数
+#define FFT_POINTS    1024
+
+// FFT结果的频率间隔
+#define FFT_FREQ_STEP  (SAMPLE_FREQ / FFT_POINTS)
 
 // 帧频率（Hz）
 #define FRAME_FREQ  25u
@@ -33,7 +39,6 @@
 // 运放输出（ADC输入）信号包含vcc/2的直流移置
 #define DC_OFFSET  ((1 << ADC_BITS) / 2)
 
-#define FFT_POINTS          256u
 #define DMA_BUFFER_lEN     FFT_POINTS
 static int16_t _dmaBuf[DMA_BUFFER_lEN];
 
@@ -337,17 +342,29 @@ static void _SampleTask(void const *args)
 	}
 }
 
-// A率加权曲线，频率间隔：20000Hz / 64 = 312.5Hz，权值为分贝值
-// 注：人耳对不频率的声音的敏感度不同，为此引入A率加权来对不同频率进行加权，以符合人的主观感觉
-static const float _aRateWeighteds[] =
+static const uint16_t _audioFreqs[64] =
 {
-		-6.71, -1.95, -0.21, 0.58,  0.96,  1.16,  1.25,  1.27,  1.25,  1.21,
-		1.14,  1.05,  0.94,  0.82,  0.7,   0.56,  0.41,  0.25,  0.09,  -0.09,
-		-0.26, -0.45, -0.63, -0.83, -1.02, -1.23, -1.43, -1.64, -1.85, -2.06,
-		-2.27, -2.49, -2.71, -2.92, -3.14, -3.36, -3.58, -3.81, -4.03, -4.25,
-		-4.47, -4.69, -4.91, -5.13, -5.35, -5.57, -5.79, -6.01, -6.23, -6.44,
-		-6.66, -6.87, -7.08, -7.3,  -7.51, -7.72, -7.92, -8.13, -8.34, -8.54,
-		-8.74, -8.94, -9.14, -9.34
+		40, 80, 120, 160, 200, 240, 280, 320, 360, 400,
+		440, 480, 520, 560, 600, 640, 680, 720, 767, 825,
+		887, 954, 1025, 1102, 1185, 1274, 1370, 1473, 1584, 1703,
+		1831, 1968, 2116, 2275, 2446, 2630, 2828, 3040, 3269, 3515,
+		3779, 4063, 4368, 4696, 5049, 5428, 5836, 6275, 6746, 7253,
+		7798, 8384, 9014, 9692, 10420, 11203, 12044, 12949, 13922, 14968,
+		16093, 17302, 18602, 20000
+};
+
+// A率加权曲线，频率间隔与 _audioFreqs 对应，权值为分贝值
+// 注：人耳对不频率的声音的敏感度不同，为此引入A率加权来对不同频率进行加权，以符合人的主观感觉
+static const float _aRateWeighteds[64] =
+{
+		-34.54, -22.4, -16.71, -13.24, -10.85, -9.06, -7.65, -6.51, -5.57, -4.77,
+		-4.1, -3.51, -3.0, -2.56, -2.17, -1.83, -1.52, -1.25, -0.97, -0.67,
+		-0.4, -0.15, 0.07, 0.28, 0.46, 0.62, 0.76, 0.88, 0.98, 1.07,
+		1.14, 1.19, 1.23, 1.26, 1.27, 1.27, 1.25, 1.22, 1.18, 1.12,
+		1.04, 0.94, 0.83, 0.69, 0.53, 0.35, 0.14, -0.1, -0.37, -0.67,
+		-1.02, -1.39, -1.81, -2.28, -2.78, -3.33, -3.93, -4.57, -5.26, -5.99,
+		-6.76, -7.58, -8.44, -9.34
+
 };
 
 static const float _quantFactors[] =
@@ -356,12 +373,77 @@ static const float _quantFactors[] =
 	8,  8,  8,  8,  8,  8,  8,  8, 8, 8
 };
 
+static void _FreqCollect(float  *powerBuf, complex_t *fftOutBuf)
+{
+	int i, j, num, freq;
+	complex_t *pc;
+
+	for(i = 0; i < 64; i++)
+	{
+		powerBuf[i] = 0;
+	}
+
+	j = 1;
+	num = 0;
+	for(i = 0; i < 64; i++)
+	{
+		freq = _audioFreqs[i];
+		while(j < (FFT_POINTS / 2))
+		{
+			if((j * FFT_FREQ_STEP) <= freq)
+			{
+				pc = & fftOutBuf[j++];
+				powerBuf[i] += pc->real * pc->real + pc->imaginary * pc->imaginary;
+				num += 1;
+			}
+			else
+			{
+				powerBuf[i] /= num;
+				num = 0;
+				break;
+			}
+		}
+	}
+}
+
+static void _Standardization(float  *powerBuf)
+{
+	int i;
+	float power, quan;
+
+	for(i = 0; i < 64; i++)
+	{
+		power = powerBuf[i];
+
+		// 量化
+		if(i < 10)
+		{
+			quan = _quantFactors[i] * 10;
+		}
+		else
+		{
+			quan = 10 - i * 0.140625; // 按不同频率的量化因子不同来处理
+		}
+		power /= quan;
+
+		// 计算分贝值
+		if(power < 1.0001)
+		{
+			powerBuf[i] = 0;
+		}
+		else
+		{
+			powerBuf[i] = 20 * log10f(power) + _aRateWeighteds[i];
+		}
+	}
+}
+
 static void _DataProcessTask(void const *args)
 {
 	osEvent event;
 	complex_t *fftInBuf;
-	complex_t *fftOutBuf, *pc;
-	float  *powerBuf, power, quan;
+	complex_t *fftOutBuf;
+	float  *powerBuf;
 
 	fftOutBuf = malloc(FFT_POINTS * sizeof(complex_t));
 	configASSERT(fftOutBuf);
@@ -380,62 +462,21 @@ static void _DataProcessTask(void const *args)
 		fftInBuf = Util_ResourceGet(_fftInResource, osWaitForever);
 		if(fftInBuf != NULL)
 		{
-			int i, j;
-
-			cr4_fft_256_stm32(fftOutBuf, fftInBuf, FFT_POINTS);
+			cr4_fft_1024_stm32(fftOutBuf, fftInBuf, FFT_POINTS);
 			Util_ResourceRelease(_fftInResource);
 
-			for(i = 0, j = 1; i < 64; i++, j += 2)
-			{
-#if 1
-				pc = & fftOutBuf[j];
-				power = pc->real * pc->real + pc->imaginary * pc->imaginary;
-				pc = & fftOutBuf[j + 1];
-				power += pc->real * pc->real + pc->imaginary * pc->imaginary;
-				power /= 2;
-#else
-				pc = & fftOutBuf[j];
-				power = pc->real * pc->real + pc->imaginary * pc->imaginary;
-#endif
-#if 0
-				powerBuf[i] = power;
-				if((i >= 10) && (i < 20))
-					printf("%d, ", (int)power);
-#else
-				// 量化
-				if(i < 10)
-				{
-					quan = _quantFactors[i] * 10;
-				}
-				else
-				{
-					quan = 10 - i * 0.140625; // 按不同频率的量化因子不同来处理
-				}
-				power /= quan;
-
-				// 计算分贝值
-				if(power < 1.0001)
-				{
-					powerBuf[i] = 0;
-				}
-				else
-				{
-					powerBuf[i] = 20 * log10f(power) + _aRateWeighteds[i];
-				}
-#endif
-			}
-//			printf("\n");
+			_FreqCollect(powerBuf, fftOutBuf);
+			_Standardization(powerBuf);
 
 			DEBUG_MSG("%.2f %.2f %.2f\n",
 					(double)(powerBuf[0]),
 					(double)(powerBuf[30]),
-					(double)(powerBuf[60]));
+					(double)(powerBuf[63]));
 		}
 		else
 		{
 			Util_ResourceRelease(_fftInResource);
 		}
-
 	}
 }
 

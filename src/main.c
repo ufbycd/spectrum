@@ -43,27 +43,10 @@ static void _Init(void)
     NVIC_PriorityGroupConfig( NVIC_PriorityGroup_4 );
 }
 
-#if TEST_TASK
-static void _TestTask( void const *pvParameters)
-{
-
-    while(1)
-    {
-        Led_Trigger();
-        osDelay(500);
-    }
-}
-#endif
-
 static void _test(void)
 {
 #if TEST_ASSERT
 	assert(false);
-#endif
-
-#if TEST_TASK
-    osThreadDef(test, _TestTask, osPriorityNormal, 0, 64);
-    osThreadCreate(osThread(test), NULL);
 #endif
 }
 
