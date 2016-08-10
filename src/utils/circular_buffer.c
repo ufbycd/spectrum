@@ -65,11 +65,9 @@ int8_t CBUF_Write(cbuf_t *cb, void *e)
 
 	cb->elems[cb->end & (cb->size - 1)] = *elem;
 
-	 /* full, overwrite moves start pointer */
 	if(CBUF_IsFull(cb))
 	{
-		cb->start = CBUF_Incr(cb, cb->start);
-		rel = -1;
+		return -1;
 	}
 
 	cb->end = CBUF_Incr(cb, cb->end);

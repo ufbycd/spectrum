@@ -9,7 +9,8 @@
 #include "circular_buffer.h"
 #include "semphr.h"
 
-#define USE_CIRCULAR_BUFFER 1
+// XXX 目前此功能异常
+#define USE_CIRCULAR_BUFFER 0
 
 // XXX 目前使用此功能有异常
 #define USE_SAFE_PUT_CHAR 0
@@ -34,7 +35,7 @@ void Serial_Init(void)
 
 #if USE_CIRCULAR_BUFFER
 	_isTransmitting = false;
-	CBUF_Init(&_txCtrl, _txBuf, sizeof(_txBuf));
+	CBUF_Init(&_txCtrl, _txBuf, _TX_BUFFER_SIZE);
 #endif
 
 #if USE_SAFE_PUT_CHAR
@@ -46,7 +47,7 @@ void Serial_Init(void)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
 
 	nvicConfig.NVIC_IRQChannel = USART1_IRQn;
-	nvicConfig.NVIC_IRQChannelPreemptionPriority = configMAX_SYSCALL_INTERRUPT_PRIORITY - 1;
+	nvicConfig.NVIC_IRQChannelPreemptionPriority = configMAX_SYSCALL_INTERRUPT_PRIORITY + 1;
 	nvicConfig.NVIC_IRQChannelSubPriority = 8;
 	nvicConfig.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(& nvicConfig);
@@ -95,21 +96,23 @@ void Serial_PutChar(char c)
 			Serial_PutChar('\r');
 		}
 #if USE_CIRCULAR_BUFFER
-		if(_IsInHandlerMode())
-		{
-			USART_SendData(USART1, c);
-			while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
-		}
-		else
+//		if(_IsInHandlerMode())
+//		{
+//			USART_SendData(USART1, c);
+//			while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+//		}
+//		else
 		{
 			int8_t ret;
 
+//			portENTER_CRITICAL();
 			ret = CBUF_Write(& _txCtrl, & c);
 			if((ret == 0) && (! _isTransmitting))
 			{
 				_isTransmitting = true;
 				USART_ITConfig(USART1, USART_IT_TXE, ENABLE);
 			}
+//			portEXIT_CRITICAL();
 		}
 #else
 		USART_SendData(USART1, c);

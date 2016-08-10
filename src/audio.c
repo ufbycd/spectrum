@@ -86,7 +86,7 @@ void Audio_Init(void)
     osThreadDef(audio, _SampleTask, osPriorityRealtime, 0, 128);
     _sampleTid = osThreadCreate(osThread(audio), NULL);
 
-    osThreadDef(process, _DataProcessTask, osPriorityLow, 0, 512);
+    osThreadDef(process, _DataProcessTask, osPriorityNormal, 0, 512);
     _processTid = osThreadCreate(osThread(process), NULL);
 }
 
@@ -104,7 +104,7 @@ static void _AdcInit(void)
     ADC_Init(ADC1, &adcConfig);
     // 4000KHz采样率要求的一笔采样的时间最多为 1000000us / 4000KHz = 25us
     // 则一笔ADC最大的采样周期数为 25us / (1000000us / 12MHz) - 12.5 = 287.5 (cycle)
-    ADC_RegularChannelConfig(ADC1, ADC_Channel_2, 1, ADC_SampleTime_239Cycles5);
+    ADC_RegularChannelConfig(ADC1, ADC_Channel_2, 1, ADC_SampleTime_71Cycles5);
     ADC_Cmd(ADC1, ENABLE);
 
     /* Enable ADC1 reset calibaration register */
@@ -339,12 +339,31 @@ static void _SampleTask(void const *args)
 	}
 }
 
+// A率加权曲线，频率间隔：20000Hz / 64 = 312.5Hz，权值为分贝值
+// 注：人耳对不频率的声音的敏感度不同，为此引入A率加权来对不同频率进行加权，以符合人的主观感觉
+static const float _aRateWeighteds[] =
+{
+		-6.71, -1.95, -0.21, 0.58,  0.96,  1.16,  1.25,  1.27,  1.25,  1.21,
+		1.14,  1.05,  0.94,  0.82,  0.7,   0.56,  0.41,  0.25,  0.09,  -0.09,
+		-0.26, -0.45, -0.63, -0.83, -1.02, -1.23, -1.43, -1.64, -1.85, -2.06,
+		-2.27, -2.49, -2.71, -2.92, -3.14, -3.36, -3.58, -3.81, -4.03, -4.25,
+		-4.47, -4.69, -4.91, -5.13, -5.35, -5.57, -5.79, -6.01, -6.23, -6.44,
+		-6.66, -6.87, -7.08, -7.3,  -7.51, -7.72, -7.92, -8.13, -8.34, -8.54,
+		-8.74, -8.94, -9.14, -9.34
+};
+
+static const float _quantFactors[] =
+{
+	50, 30, 24, 22, 20, 15, 10, 8, 8, 8,
+	8,  8,  8,  8,  8,  8,  8,  8, 8, 8
+};
+
 static void _DataProcessTask(void const *args)
 {
 	osEvent event;
 	complex_t *fftInBuf;
-	complex_t *fftOutBuf, fftOut;
-	float  *powerBuf, power;
+	complex_t *fftOutBuf, *pc;
+	float  *powerBuf, power, quan;
 
 	fftOutBuf = malloc(FFT_POINTS * sizeof(complex_t));
 	configASSERT(fftOutBuf);
@@ -363,23 +382,56 @@ static void _DataProcessTask(void const *args)
 		fftInBuf = Util_ResourceGet(_fftInResource, osWaitForever);
 		if(fftInBuf != NULL)
 		{
-			int i;
+			int i, j;
 
 			cr4_fft_256_stm32(fftOutBuf, fftInBuf, FFT_POINTS);
 			Util_ResourceRelease(_fftInResource);
 
-			for(i = 0; i < 64; i++)
+			for(i = 0, j = 1; i < 64; i++, j += 2)
 			{
-				fftOut = fftOutBuf[i + 1];
-				power = fftOut.real * fftOut.real +
-						fftOut.imaginary * fftOut.imaginary;
+#if 1
+				pc = & fftOutBuf[j];
+				power = pc->real * pc->real + pc->imaginary * pc->imaginary;
+				pc = & fftOutBuf[j + 1];
+				power += pc->real * pc->real + pc->imaginary * pc->imaginary;
+				power /= 2;
+#else
+				pc = & fftOutBuf[j];
+				power = pc->real * pc->real + pc->imaginary * pc->imaginary;
+#endif
+#if 0
 				powerBuf[i] = power;
-			}
+				if((i >= 10) && (i < 20))
+					printf("%d, ", (int)power);
+#else
+				// 量化
+				if(i < 10)
+				{
+					quan = _quantFactors[i] * 10;
+				}
+				else
+				{
+					quan = 10 - i * 0.140625; // 按不同频率的量化因子不同来处理
+				}
+				power /= quan;
 
-//			printf("%d %d %d\n",
-//					(int)(powerBuf[10]),
-//					(int)(powerBuf[30]),
-//					(int)(powerBuf[60]));
+				// 计算分贝值
+				if(power < 1.0001)
+				{
+					powerBuf[i] = 0;
+				}
+				else
+				{
+					powerBuf[i] = 20 * log10f(power) + _aRateWeighteds[i];
+				}
+#endif
+			}
+//			printf("\n");
+
+			printf("%.2f %.2f %.2f\n",
+					(double)(powerBuf[0]),
+					(double)(powerBuf[30]),
+					(double)(powerBuf[60]));
 		}
 		else
 		{

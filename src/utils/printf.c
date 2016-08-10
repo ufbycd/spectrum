@@ -29,7 +29,15 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stddef.h>
-//#include "printf.h"
+#include "serial.h"
+
+
+#define SUPPOR_LONG_LONG          0
+#define PRINT_FLOAT_AGINST_DOUBLE 0
+#if ! PRINT_FLOAT_AGINST_DOUBLE
+#	undef SUPPOR_LONG_LONG
+#	define SUPPOR_LONG_LONG 1
+#endif
 
 struct _buf
 {
@@ -37,8 +45,6 @@ struct _buf
 	size_t 	size;
 	char 	*data;
 };
-
-extern void uart_putchar(char c);
 
 static int printchar(struct _buf *sbuf, int c)
 {
@@ -61,7 +67,7 @@ static int printchar(struct _buf *sbuf, int c)
 		sbuf->size -= 1;
 	}
 	else
-		uart_putchar(c);
+		Serial_PutChar(c);
 
 	return 1;
 }
@@ -160,6 +166,7 @@ static int printInt(struct _buf *sbuf, int value, int ary, int sg, int width, in
 	return pc + prints(sbuf, str, width, pad);
 }
 
+#if SUPPOR_LONG_LONG
 static int printLongLongInt(struct _buf *sbuf, long long int value, int ary, int sg, int width, int pad, int letbase)
 {
 	char print_buf[PRINT_BUF_LEN];
@@ -208,11 +215,16 @@ static int printLongLongInt(struct _buf *sbuf, long long int value, int ary, int
 
 	return pc + prints(sbuf, str, width, pad);
 }
+#else
+#	define printLongLongInt(sbuf, value, ary, sg, width, pad, letbase) 0
+#endif
 
-static int printFloat(struct _buf *sbuf, double value, int ary, int width, int precision, int pad, int letbase)
+#if ! PRINT_FLOAT_AGINST_DOUBLE
+static int printDouble(struct _buf *sbuf, double value, int ary, int width, int precision, int pad, int letbase)
 {
 	int num;
 	long long int llvalue, lli;
+	unsigned long long ull;
 	int i;
 
 	num = 0;
@@ -231,10 +243,41 @@ static int printFloat(struct _buf *sbuf, double value, int ary, int width, int p
 
 	value -= llvalue;
 	llvalue = (long long int) (value * lli);
-	num += printLongLongInt(sbuf, llvalue, ary, 1, 0, PAD_RIGHT, letbase);
+	ull = (llvalue > 0) ? llvalue : - llvalue;
+	num += printLongLongInt(sbuf, ull, ary, 1, 0, PAD_RIGHT, letbase);
 
 	return num;
 }
+#else
+static int printFloat(struct _buf *sbuf, float value, int ary, int width, int precision, int pad, int letbase)
+{
+	int num;
+	int32_t llvalue, lli;
+	uint32_t uli;
+	int i;
+
+	num = 0;
+
+	llvalue = (int32_t) value;
+	num += printInt(sbuf, llvalue, ary, 1, 0, PAD_RIGHT, letbase);
+
+	printchar(sbuf, '.');
+	num += 1;
+
+	lli = 1;
+	for(i = 0; i < precision; i++)
+	{
+		lli *= 10;
+	}
+
+	value -= llvalue;
+	llvalue = (int32_t) (value * lli);
+	uli = (llvalue > 0) ? llvalue : - llvalue;
+	num += printInt(sbuf, uli, ary, 1, 0, PAD_RIGHT, letbase);
+
+	return num;
+}
+#endif
 
 /**
  * @brief A format specifier follows this prototype:
@@ -420,7 +463,11 @@ static int print(struct _buf *sbuf, const char *format, va_list args)
 			case 'E':
 			case 'g':
 			case 'G':
-				num += printFloat(sbuf, va_arg(args, double), 10, width, precision, pad, letbase);
+#if PRINT_FLOAT_AGINST_DOUBLE
+				num += printFloat(sbuf, va_arg(args, float), 10, width, precision, pad, letbase);
+#else
+				num += printDouble(sbuf, va_arg(args, double), 10, width, precision, pad, letbase);
+#endif
 				break;
 			}
 		}
@@ -480,11 +527,11 @@ int puts(const char *s)
 	c = *s++;
 	for(i = 0; c != '\0'; i++)
 	{
-		uart_putchar(c);
+		Serial_PutChar(c);
 		c = *s++;
 	}
 
-	uart_putchar('\n');
+	Serial_PutChar('\n');
 
 	return i + 1;
 }
