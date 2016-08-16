@@ -23,6 +23,12 @@
 
 #define FORCE_INLINE __inline__ __attribute__((always_inline))
 
+
+#define BIT_SET(reg, bit) (reg) |= (bit)
+#define BIT_CLR(reg, bit) (reg) &= ~ (bit)
+#define BITS_SET(reg, mask, bits) do{reg = (reg & (~(mask))) | (bits);}while(0);
+
+
 #define ENABLE_COLOR 1
 
 #define BLACK 		"\x1b[30m"

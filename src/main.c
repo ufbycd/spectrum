@@ -12,6 +12,7 @@
 #include "led.h"
 #include "serial.h"
 #include "audio.h"
+#include "LedMatrix.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -56,6 +57,7 @@ int main(int argc, char* argv[])
     Led_Init();
     Serial_Init();
     Audio_Init();
+    LedMatrix_Init();
 
     DEBUG_MSG("\nSystem start.\n");
     _test();

@@ -16,8 +16,8 @@
 
 // 帧频率发生是否用硬件定时器
 // 否则用软件定时器
-// XXX 此功能目前不稳定
-#define HARD_WARE_TIMER_FOR_FRAME 1
+// XXX LED点阵屏也使用此硬件定时器
+#define HARD_WARE_TIMER_FOR_FRAME 0
 
 // 采样频率（Hz）
 #define SAMPLE_FREQ   40960
@@ -468,10 +468,10 @@ static void _DataProcessTask(void const *args)
 			_FreqCollect(powerBuf, fftOutBuf);
 			_Standardization(powerBuf);
 
-			DEBUG_MSG("%.2f %.2f %.2f\n",
-					(double)(powerBuf[0]),
-					(double)(powerBuf[30]),
-					(double)(powerBuf[63]));
+//			DEBUG_MSG("%.2f %.2f %.2f\n",
+//					(double)(powerBuf[0]),
+//					(double)(powerBuf[30]),
+//					(double)(powerBuf[63]));
 		}
 		else
 		{
