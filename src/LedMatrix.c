@@ -56,6 +56,9 @@ static volatile unsigned int _currentScanLine;
 
 static void _GpioInit(void);
 static void _FrameTimerInit(void);
+static void _AnimationTask(void const *args);
+
+static osThreadId _animationTid;
 
 void LedMatrix_Init(void)
 {
@@ -64,8 +67,8 @@ void LedMatrix_Init(void)
 	_GpioInit();
 	_FrameTimerInit();
 
-    MATRIX_ENABLE();
-    TIM_Cmd(TIM1, ENABLE);
+    osThreadDef(audio, _AnimationTask, osPriorityRealtime, 0, 128);
+    _animationTid = osThreadCreate(osThread(audio), NULL);
 }
 
 static void _GpioInit(void)
@@ -149,15 +152,30 @@ void TIM1_UP_IRQHandler(void)
     	IO_SET(_IO_CLK);
     }
 
-//    IO_SET(_IO_LAT);
-//    IO_CLR(_IO_LAT);
-
     MATRIX_SCAN_ON_LINE(_currentScanLine);
+    IO_CLR(_IO_LAT);
+    IO_SET(_IO_LAT);
+
 
     _currentScanLine += 1;
     if(_currentScanLine >= _MATRIX_LINE_SCAN_COUNT)
     {
     	_currentScanLine = 0;
+    }
+}
+
+static void _AnimationTask(void const *args)
+{
+
+    MATRIX_ENABLE();
+    TIM_Cmd(TIM1, ENABLE);
+
+    while(1)
+    {
+//    	MATRIX_ENABLE();
+//    	osDelay(1);
+//    	MATRIX_DISABLE();
+    	osDelay(100);
     }
 }
 
