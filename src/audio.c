@@ -67,7 +67,7 @@ static Util_ResourceHandle_t _fftInResource;
 static void _AdcInit(void);
 static void _AdcGpioInit(void);
 static void _AdcDmaInit(void);
-static void _AdcTimerInit(void);
+static void _sampleTimerInit(void);
 #if HARD_WARE_TIMER_FOR_FRAME
 static void _FrameTimerInit(void);
 static inline void _FrameTimerStart(void);
@@ -83,7 +83,7 @@ void Audio_Init(void)
     _AdcGpioInit();
     _AdcDmaInit();             //
     _AdcInit();               // 注意此处的初始化顺序，否则采样传输的数据容易出现数据错位的结果
-    _AdcTimerInit();           //
+    _sampleTimerInit();           //
 #if HARD_WARE_TIMER_FOR_FRAME
     _FrameTimerInit();
 #endif
@@ -167,7 +167,7 @@ static void _AdcDmaInit(void)
     DMA_Cmd(DMA1_Channel1, ENABLE);                 //使能DMA1
 }
 
-static void _AdcTimerInit(void)
+static void _sampleTimerInit(void)
 {
     TIM_TimeBaseInitTypeDef timerConfig;
 
@@ -177,8 +177,8 @@ static void _AdcTimerInit(void)
     timerConfig.TIM_ClockDivision = TIM_CKD_DIV1;          //系统时钟，不分频
     // 预分频，计数速度1000KHz
     timerConfig.TIM_Prescaler = (SystemCoreClock / 1000000u) - 1;
-    //  采样频率： SAMPLE_FREQ = SystemCoreClock / （Prescaler + 1） / Period
-    timerConfig.TIM_Period = 1000000u / SAMPLE_FREQ;
+    //  采样频率： SAMPLE_FREQ = SystemCoreClock / （Prescaler + 1） / (Period + 1)
+    timerConfig.TIM_Period = (1000000u / SAMPLE_FREQ) - 1;
     timerConfig.TIM_CounterMode = TIM_CounterMode_Up;      //向上计数模式
     timerConfig.TIM_RepetitionCounter = 0x00;              //发生0+1次update事件产生中断
     TIM_TimeBaseInit(TIM3, &timerConfig);
@@ -205,8 +205,8 @@ static void _FrameTimerInit(void)
     timerConfig.TIM_ClockDivision = TIM_CKD_DIV1;          // 时钟分频
     // 预分频，计数速度100KHz
     timerConfig.TIM_Prescaler = (SystemCoreClock / 100000u) - 1;
-    //  频率： FRAME_FREQ = SystemCoreClock / 4 / （Prescaler + 1） / Period
-    timerConfig.TIM_Period = 100000u / FRAME_FREQ;
+    //  频率： FRAME_FREQ = SystemCoreClock / （Prescaler + 1） / (Period + 1)
+    timerConfig.TIM_Period = (100000u / FRAME_FREQ) - 1;
     timerConfig.TIM_CounterMode = TIM_CounterMode_Up;      //向上计数模式
     timerConfig.TIM_RepetitionCounter = 0x00;              //发生0+1次update事件产生中断
     TIM_TimeBaseInit(TIM4, &timerConfig);

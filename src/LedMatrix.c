@@ -50,7 +50,7 @@
 #define MATRIX_ENABLE()  IO_CLR(_IO_EN)
 #define MATRIX_DISABLE() IO_SET(_IO_EN)
 
-#define MATRIX_SCAN_ON_LINE(n) BITS_SET(_ADDR_PORT->ODR, 0xf << 12, n << 12)
+#define MATRIX_SET_SCAN_LINE(n) BITS_SET(_ADDR_PORT->ODR, 0xf << 12, n << 12)
 
 static volatile unsigned int _currentScanLine;
 
@@ -119,8 +119,8 @@ static void _FrameTimerInit(void)
     timerConfig.TIM_ClockDivision = TIM_CKD_DIV1;          // 时钟分频
     // 预分频，计数速度100KHz
     timerConfig.TIM_Prescaler = (SystemCoreClock / 100000u) - 1;
-    //  频率： FRAME_FREQ = SystemCoreClock / 4 / （Prescaler + 1） / Period
-    timerConfig.TIM_Period = 100000u / _MATRIX_LINE_SCAN_FREQ;
+    //  频率： FRAME_FREQ = SystemCoreClock / （Prescaler + 1） / (Period + 1)
+    timerConfig.TIM_Period = (100000u / _MATRIX_LINE_SCAN_FREQ) - 1;
     timerConfig.TIM_CounterMode = TIM_CounterMode_Up;      //向上计数模式
     timerConfig.TIM_RepetitionCounter = 0x00;              //发生0+1次update事件产生中断
     TIM_TimeBaseInit(TIM1, &timerConfig);
@@ -152,9 +152,19 @@ void TIM1_UP_IRQHandler(void)
     	IO_SET(_IO_CLK);
     }
 
-    MATRIX_SCAN_ON_LINE(_currentScanLine);
-    IO_CLR(_IO_LAT);
+    MATRIX_SET_SCAN_LINE(_currentScanLine);
     IO_SET(_IO_LAT);
+    asm("nop \n");
+    asm("nop \n");
+    asm("nop \n");
+    asm("nop \n");
+    asm("nop \n");
+    asm("nop \n");
+    asm("nop \n");
+    asm("nop \n");
+    asm("nop \n");
+    asm("nop \n");
+    IO_CLR(_IO_LAT);
 
 
     _currentScanLine += 1;
