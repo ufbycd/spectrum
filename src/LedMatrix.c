@@ -17,10 +17,13 @@
 #define _MATRIX_LINE_SCAN_COUNT (_MATRIX_ROW_COUNT / 2)
 
 // 显示帧频率 Hz
-#define _MATRIX_FRAME_FREQ 120
+#define _MATRIX_FRAME_FREQ 200
 
 // 行扫描信号频率 Hz
 #define _MATRIX_LINE_SCAN_FREQ (_MATRIX_FRAME_FREQ * _MATRIX_LINE_SCAN_COUNT)
+
+// OE PWM信号频率 Hz
+#define _MATRIX_RBG_PWM_FREQ (_MATRIX_LINE_SCAN_FREQ * 2)
 
 #define _ADDR_PORT GPIOB
 
@@ -56,6 +59,9 @@ static volatile unsigned int _currentScanLine;
 
 static void _GpioInit(void);
 static void _FrameTimerInit(void);
+static void _PwmGpioInit(void);
+static void _PwmTimerInit(void);
+
 static void _AnimationTask(void const *args);
 
 static osThreadId _animationTid;
@@ -66,6 +72,8 @@ void LedMatrix_Init(void)
 
 	_GpioInit();
 	_FrameTimerInit();
+	_PwmGpioInit();
+	_PwmTimerInit();
 
     osThreadDef(audio, _AnimationTask, osPriorityRealtime, 0, 128);
     _animationTid = osThreadCreate(osThread(audio), NULL);
@@ -121,16 +129,116 @@ static void _FrameTimerInit(void)
 
 //    TIM_TimeBaseStructInit(&timerConfig);                //初始化TIMBASE结构体
     timerConfig.TIM_ClockDivision = TIM_CKD_DIV1;          // 时钟分频
-    // 预分频，计数速度100KHz
-    timerConfig.TIM_Prescaler = (SystemCoreClock / 100000u) - 1;
+    // 预分频，计数速度1000KHz
+    timerConfig.TIM_Prescaler = (SystemCoreClock / 1000000u) - 1;
     //  频率： FRAME_FREQ = SystemCoreClock / （Prescaler + 1） / (Period + 1)
-    timerConfig.TIM_Period = (100000u / _MATRIX_LINE_SCAN_FREQ) - 1;
+    timerConfig.TIM_Period = (1000000u / _MATRIX_LINE_SCAN_FREQ) - 1;
     timerConfig.TIM_CounterMode = TIM_CounterMode_Up;      //向上计数模式
     timerConfig.TIM_RepetitionCounter = 0x00;              //发生0+1次update事件产生中断
     TIM_TimeBaseInit(TIM1, &timerConfig);
 
     TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
     TIM_ITConfig(TIM1, TIM_IT_Update, ENABLE);              // 开启中断
+}
+
+static void _PwmGpioInit(void)
+{
+    GPIO_InitTypeDef gpioConfig;
+
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+
+    GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
+
+//    gpioConfig.GPIO_Pin = GPIO_Pin_15;
+//    gpioConfig.GPIO_Mode = GPIO_Mode_AF_PP;
+//    gpioConfig.GPIO_Speed = GPIO_Speed_50MHz;
+//    GPIO_Init(GPIOA, & gpioConfig);
+//
+//    gpioConfig.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_10;
+//    gpioConfig.GPIO_Mode = GPIO_Mode_AF_PP;
+//    gpioConfig.GPIO_Speed = GPIO_Speed_50MHz;
+//    GPIO_Init(GPIOB, & gpioConfig);
+
+    gpioConfig.GPIO_Pin = GPIO_Pin_11;
+    gpioConfig.GPIO_Mode = GPIO_Mode_AF_PP;
+    gpioConfig.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOB, & gpioConfig);
+
+
+    GPIO_PinRemapConfig(GPIO_FullRemap_TIM2, ENABLE);
+}
+
+static uint16_t _tim2Period;
+
+static void _PwmTimerInit(void)
+{
+    TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+    TIM_OCInitTypeDef  TIM_OCInitStructure;
+
+    /*PCLK1经过2倍频后作为TIM3的时钟源等于72MHz*/
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
+
+    /* Time base configuration */
+    TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;        //设置时钟分频系数：不分频
+    TIM_TimeBaseStructure.TIM_Prescaler = (SystemCoreClock / 1000000u) - 1;
+    _tim2Period = 1000000u / _MATRIX_RBG_PWM_FREQ;
+    TIM_TimeBaseStructure.TIM_Period = _tim2Period - 1;
+    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;    //向上计数溢出模式
+    TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
+
+//    /* PWM1 Mode configuration: Channel1 */
+    TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;              //配置为PWM模式1
+//    TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
+//    TIM_OCInitStructure.TIM_Pulse = _tim2Period * 50 / 100;         //占比宽度
+//    TIM_OCInitStructure.TIM_OCPolarity =TIM_OCPolarity_High;       //占比时为高电平
+//    TIM_OC1Init(TIM2, &TIM_OCInitStructure);                       //使能通道1
+//    TIM_OC1PreloadConfig(TIM2, TIM_OCPreload_Enable);
+//    /* PWM1 Mode configuration: Channel2 */
+//    TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
+//    TIM_OCInitStructure.TIM_Pulse = _tim2Period * 10 / 100;         //占比宽度
+//    TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;      //占比时为低电平
+//    TIM_OC2Init(TIM2, &TIM_OCInitStructure);                       //使能通道2
+//    TIM_OC2PreloadConfig(TIM2, TIM_OCPreload_Enable);
+//    /* PWM1 Mode configuration: Channel3 */
+//    TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
+//    TIM_OCInitStructure.TIM_Pulse = _tim2Period * 10 / 100;       //占比宽度
+//    TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;      //占比时为低电平
+//    TIM_OC3Init(TIM2, &TIM_OCInitStructure);                       //使能通道2
+//    TIM_OC3PreloadConfig(TIM2, TIM_OCPreload_Enable);
+    /* PWM1 Mode configuration: Channel4 */
+    TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
+    TIM_OCInitStructure.TIM_Pulse = _tim2Period * 10 / 100;        //占比宽度
+    TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;       //占比时为低电平
+    TIM_OC4Init(TIM2, &TIM_OCInitStructure);                       //使能通道2
+    TIM_OC4PreloadConfig(TIM2, TIM_OCPreload_Enable);
+
+    TIM_ARRPreloadConfig(TIM2, ENABLE);                            //使能TIM重载寄存器ARR
+}
+
+static void _PwmStart(void)
+{
+    TIM_Cmd(TIM2, ENABLE);                                         //使能TIM
+}
+
+static void _SetMatrixBrightness(float level)
+{
+	uint16_t ccr4;
+
+	if(level > 100)
+	{
+		ccr4 = _tim2Period;
+	}
+	else if(level < 0)
+	{
+		ccr4 = 0;
+	}
+	else
+	{
+		ccr4 = (uint16_t) (_tim2Period * level / 100);
+	}
+
+	TIM2->CCR4 = ccr4;
 }
 
 void TIM1_UP_IRQHandler(void)
@@ -172,16 +280,26 @@ void TIM1_UP_IRQHandler(void)
 
 static void _AnimationTask(void const *args)
 {
+	int level, dir;
 
     MATRIX_ENABLE();
     TIM_Cmd(TIM1, ENABLE);
+    _PwmStart();
+
+    level = 0;
+    dir = 1;
 
     while(1)
     {
-//    	MATRIX_ENABLE();
-//    	osDelay(1);
-//    	MATRIX_DISABLE();
-    	osDelay(100);
+    	_SetMatrixBrightness(5);
+    	break;
+    	osDelay(30);
+    	level += dir;
+    	if((level > 100) || (level < 0))
+    	{
+    		dir *= -1;
+    		level += dir;
+    	}
     }
 }
 
