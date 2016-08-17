@@ -78,6 +78,8 @@ static void _GpioInit(void)
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 
+    GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
+
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_15;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;    //推挽
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;   //50M时钟速度
@@ -85,6 +87,8 @@ static void _GpioInit(void)
 
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_10 |
     		GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;    //推挽
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;   //50M时钟速度
     GPIO_Init(GPIOB, & GPIO_InitStructure);
 
     MATRIX_DISABLE();
@@ -142,30 +146,22 @@ void TIM1_UP_IRQHandler(void)
     	return;
     }
 
+    IO_CLR(_IO_LAT);
+
     for(column = 0; column < _MATRIX_COLUMN_COUNT; column ++)
     {
     	IO_CLR(_IO_CLK);
 
     	IO_SET(_IO_DR1);
-    	IO_SET(_IO_DG2);
+//    	IO_SET(_IO_DB1);
+//    	IO_SET(_IO_DG1);
+    	IO_SET(_IO_DB2);
 
     	IO_SET(_IO_CLK);
     }
 
     MATRIX_SET_SCAN_LINE(_currentScanLine);
     IO_SET(_IO_LAT);
-    asm("nop \n");
-    asm("nop \n");
-    asm("nop \n");
-    asm("nop \n");
-    asm("nop \n");
-    asm("nop \n");
-    asm("nop \n");
-    asm("nop \n");
-    asm("nop \n");
-    asm("nop \n");
-    IO_CLR(_IO_LAT);
-
 
     _currentScanLine += 1;
     if(_currentScanLine >= _MATRIX_LINE_SCAN_COUNT)
