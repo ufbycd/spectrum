@@ -13,6 +13,8 @@
 
 
 void LedMatrix_Init(void);
+void LedMatrix_SetBrightness(float level);
 
+osThreadId LedMatrix_GetDisplayThreadId(void);
 
 #endif /* LEDMATRIX_H_ */

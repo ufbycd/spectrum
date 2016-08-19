@@ -12,5 +12,6 @@
 #include "main.h"
 
 void Audio_Init(void);
+Util_ResourceHandle_t Audio_GetSpectrumResHandle(void);
 
 #endif /* AUDIO_H_ */

@@ -23,7 +23,7 @@
 
 #define FORCE_INLINE __inline__ __attribute__((always_inline))
 
-
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define BIT_SET(reg, bit) (reg) |= (bit)
 #define BIT_CLR(reg, bit) (reg) &= ~ (bit)
 #define BITS_SET(reg, mask, bits) do{reg = (reg & (~(mask))) | (bits);}while(0);
@@ -60,5 +60,13 @@ int printSafe(const char *fmt, ...);
 #   define MDEBUG_COLOR(color, fmt, args...)
 #   define ON_DEBUG(f)
 #endif
+
+
+
+#define EVENT_SAMPLE_FINISH 0x1
+#define EVENT_FRAME_BEGIN   (0x1 << 1)
+#define EVENT_FFT_IN_FILL   (0x1 << 2)
+#define EVENT_SPECTRUM_FILL (0x1 << 3)
+
 
 #endif /* MAIN_H_ */
