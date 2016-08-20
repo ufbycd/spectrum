@@ -8,6 +8,7 @@
 #include "audio.h"
 #include "stm32_dsp.h"
 #include "utils.h"
+#include "LedMatrix.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -16,8 +17,7 @@
 
 // 帧频率发生是否用硬件定时器
 // 否则用软件定时器
-// XXX 此功能目前不稳定
-#define HARD_WARE_TIMER_FOR_FRAME 1
+#define HARD_WARE_TIMER_FOR_FRAME 0
 
 // 采样频率（Hz）
 #define SAMPLE_FREQ   40960
@@ -25,26 +25,27 @@
 // FFT 点数
 #define FFT_POINTS    1024
 
+// FFT 函数
+#define _FFT(out, in, point) cr4_fft_##point##_stm32(out, in, point)
+#define FFT_FUNC(out, in, point) _FFT(out, in, point)
+
 // FFT结果的频率间隔
-#define FFT_FREQ_STEP  (SAMPLE_FREQ / FFT_POINTS)
+#define FFT_FREQ_STEP (SAMPLE_FREQ / FFT_POINTS)
 
 // 帧频率（Hz）
-#define FRAME_FREQ  25u
+#define FRAME_FREQ    25u
 // 帧周期时长（ms）
-#define FRAME_T		 (1000u / FRAME_FREQ)
+#define FRAME_T		  (1000u / FRAME_FREQ)
 
 // ADC的有效位数
-#define ADC_BITS    12
+#define ADC_BITS      12
 
 // 运放输出（ADC输入）信号包含vcc/2的直流移置
 #define DC_OFFSET  ((1 << ADC_BITS) / 2)
 
 #define DMA_BUFFER_lEN     FFT_POINTS
 static int16_t _dmaBuf[DMA_BUFFER_lEN];
-
-#define _EVENT_SAMPLE_FINISH 0x1
-#define _EVENT_FRAME_BEGIN   (0x1 << 1)
-#define _EVENT_FFT_IN_FILL   (0x1 << 2)
+static float _calibrationValues[64];
 
 
 
@@ -63,27 +64,35 @@ typedef union _complex
 static osThreadId _sampleTid;
 static osThreadId _processTid;
 static Util_ResourceHandle_t _fftInResource;
+static Util_ResourceHandle_t _spectrumRes;
+static osTimerId _calibrationTid;
+static bool _isCalibratting;
 
 static void _AdcInit(void);
 static void _AdcGpioInit(void);
 static void _AdcDmaInit(void);
-static void _AdcTimerInit(void);
+static void _sampleTimerInit(void);
 #if HARD_WARE_TIMER_FOR_FRAME
 static void _FrameTimerInit(void);
 static inline void _FrameTimerStart(void);
 #endif
 static void _SampleTask(void const *args);
 static void _DataProcessTask(void const *args);
+static void _EndCalibration(void const *args);
+static void _CalibrationValueInit(void);
 
 void Audio_Init(void)
 {
+	_isCalibratting = false;
+	_CalibrationValueInit();
+
 	configASSERT(sizeof(complex_t) == sizeof(long));
 	_fftInResource = Util_ResourceCreate(FFT_POINTS * sizeof(complex_t));
 
     _AdcGpioInit();
     _AdcDmaInit();             //
     _AdcInit();               // 注意此处的初始化顺序，否则采样传输的数据容易出现数据错位的结果
-    _AdcTimerInit();           //
+    _sampleTimerInit();           //
 #if HARD_WARE_TIMER_FOR_FRAME
     _FrameTimerInit();
 #endif
@@ -167,7 +176,7 @@ static void _AdcDmaInit(void)
     DMA_Cmd(DMA1_Channel1, ENABLE);                 //使能DMA1
 }
 
-static void _AdcTimerInit(void)
+static void _sampleTimerInit(void)
 {
     TIM_TimeBaseInitTypeDef timerConfig;
 
@@ -177,8 +186,8 @@ static void _AdcTimerInit(void)
     timerConfig.TIM_ClockDivision = TIM_CKD_DIV1;          //系统时钟，不分频
     // 预分频，计数速度1000KHz
     timerConfig.TIM_Prescaler = (SystemCoreClock / 1000000u) - 1;
-    //  采样频率： SAMPLE_FREQ = SystemCoreClock / （Prescaler + 1） / Period
-    timerConfig.TIM_Period = 1000000u / SAMPLE_FREQ;
+    //  采样频率： SAMPLE_FREQ = SystemCoreClock / （Prescaler + 1） / (Period + 1)
+    timerConfig.TIM_Period = (1000000u / SAMPLE_FREQ) - 1;
     timerConfig.TIM_CounterMode = TIM_CounterMode_Up;      //向上计数模式
     timerConfig.TIM_RepetitionCounter = 0x00;              //发生0+1次update事件产生中断
     TIM_TimeBaseInit(TIM3, &timerConfig);
@@ -205,8 +214,8 @@ static void _FrameTimerInit(void)
     timerConfig.TIM_ClockDivision = TIM_CKD_DIV1;          // 时钟分频
     // 预分频，计数速度100KHz
     timerConfig.TIM_Prescaler = (SystemCoreClock / 100000u) - 1;
-    //  频率： FRAME_FREQ = SystemCoreClock / 4 / （Prescaler + 1） / Period
-    timerConfig.TIM_Period = 100000u / FRAME_FREQ;
+    //  频率： FRAME_FREQ = SystemCoreClock / （Prescaler + 1） / (Period + 1)
+    timerConfig.TIM_Period = (100000u / FRAME_FREQ) - 1;
     timerConfig.TIM_CounterMode = TIM_CounterMode_Up;      //向上计数模式
     timerConfig.TIM_RepetitionCounter = 0x00;              //发生0+1次update事件产生中断
     TIM_TimeBaseInit(TIM4, &timerConfig);
@@ -231,7 +240,7 @@ void TIM4_IRQHandler(void)
     if(TIM_GetITStatus(TIM4, TIM_IT_Update))
     {
         TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
-        osSignalSet(_sampleTid, _EVENT_FRAME_BEGIN);
+        osSignalSet(_sampleTid, EVENT_FRAME_BEGIN);
     }
 }
 #endif
@@ -267,7 +276,7 @@ void DMA1_Channel1_IRQHandler(void)
     {
     	DMA_ClearITPendingBit(DMA_IT_TC);           //清除DMA中断标志位
     	_SampleStop();
-    	osSignalSet(_sampleTid, _EVENT_SAMPLE_FINISH);
+    	osSignalSet(_sampleTid, EVENT_SAMPLE_FINISH);
     }
 }
 
@@ -288,9 +297,62 @@ int32_t _CalcDmaBufAverage(complex_t *buf)
 #if ! HARD_WARE_TIMER_FOR_FRAME
 static void _OnFrameBegin(void const *args)
 {
-	osSignalSet(_sampleTid, _EVENT_FRAME_BEGIN);
+	osSignalSet(_sampleTid, EVENT_FRAME_BEGIN);
 }
 #endif
+
+/**
+ * @brief 初始化校准值
+ * TODO 实现校准完成后存储校准值到Flash，当初始化时再从Flash内载入
+ */
+static void _CalibrationValueInit(void)
+{
+	int i;
+
+	for(i = 0; i < ARRAY_SIZE(_calibrationValues); i++)
+	{
+		_calibrationValues[i] = 0;
+	}
+}
+
+void Audio_SetCalibrationOn(void)
+{
+	int i;
+
+	for(i = 0; i < ARRAY_SIZE(_calibrationValues); i++)
+	{
+		_calibrationValues[i] = 0;
+	}
+
+	_isCalibratting = true;
+
+	osTimerDef(calibration, _EndCalibration);
+	_calibrationTid = osTimerCreate(osTimer(calibration), osTimerOnce, NULL);
+	osTimerStart(_calibrationTid, 5000);
+
+	DEBUG_MSG("calibration on\n");
+}
+
+static void _EndCalibration(void const *args)
+{
+	int i;
+
+	osTimerDelete(_calibrationTid);
+	_isCalibratting = false;
+
+	for(i = 0; i < ARRAY_SIZE(_calibrationValues); i++)
+	{
+		_calibrationValues[i] *= 1.5;
+	}
+
+
+	DEBUG_MSG("calibration end\n");
+}
+
+static bool _IsCalibrationOn(void)
+{
+	return _isCalibratting;
+}
 
 static void _SampleTask(void const *args)
 {
@@ -309,11 +371,11 @@ static void _SampleTask(void const *args)
 
 	while(1)
 	{
-		event = osSignalWait(_EVENT_FRAME_BEGIN, osWaitForever);
+		event = osSignalWait(EVENT_FRAME_BEGIN, osWaitForever);
 		configASSERT(event.status == osEventSignal);
 		_SampleStart();
 
-		event = osSignalWait(_EVENT_SAMPLE_FINISH, osWaitForever);
+		event = osSignalWait(EVENT_SAMPLE_FINISH, osWaitForever);
 		if(event.status != osEventSignal)
 		{
 			configASSERT(false);
@@ -328,16 +390,12 @@ static void _SampleTask(void const *args)
 
 			for(i = 0; i < FFT_POINTS; i++)
 			{
-				fftInBuf[i].real = _dmaBuf[i] - DC_OFFSET;
+				fftInBuf[i].real = (_dmaBuf[i] - DC_OFFSET) >> 2;
 				fftInBuf[i].imaginary = 0;
 			}
 
 			Util_ResourceRelease(_fftInResource);
-			osSignalSet(_processTid, _EVENT_FFT_IN_FILL);
-		}
-		else
-		{
-			Util_ResourceRelease(_fftInResource);
+			osSignalSet(_processTid, EVENT_FFT_IN_FILL);
 		}
 	}
 }
@@ -365,12 +423,6 @@ static const float _aRateWeighteds[64] =
 		-1.02, -1.39, -1.81, -2.28, -2.78, -3.33, -3.93, -4.57, -5.26, -5.99,
 		-6.76, -7.58, -8.44, -9.34
 
-};
-
-static const float _quantFactors[] =
-{
-	50, 30, 24, 22, 20, 15, 10, 8, 8, 8,
-	8,  8,  8,  8,  8,  8,  8,  8, 8, 8
 };
 
 static void _FreqCollect(float  *powerBuf, complex_t *fftOutBuf)
@@ -406,25 +458,29 @@ static void _FreqCollect(float  *powerBuf, complex_t *fftOutBuf)
 	}
 }
 
+static void _Calibration(float  *powerBuf)
+{
+	int i;
+	float power;
+
+	for(i = 0; i < ARRAY_SIZE(_calibrationValues); i++)
+	{
+		power = powerBuf[i];
+		if(power > _calibrationValues[i])
+		{
+			_calibrationValues[i] = power;
+		}
+	}
+}
+
 static void _Standardization(float  *powerBuf)
 {
 	int i;
-	float power, quan;
+	float power;
 
 	for(i = 0; i < 64; i++)
 	{
-		power = powerBuf[i];
-
-		// 量化
-		if(i < 10)
-		{
-			quan = _quantFactors[i] * 10;
-		}
-		else
-		{
-			quan = 10 - i * 0.140625; // 按不同频率的量化因子不同来处理
-		}
-		power /= quan;
+		power = powerBuf[i] - _calibrationValues[i];
 
 		// 计算分贝值
 		if(power < 1.0001)
@@ -433,7 +489,9 @@ static void _Standardization(float  *powerBuf)
 		}
 		else
 		{
-			powerBuf[i] = 20 * log10f(power) + _aRateWeighteds[i];
+			// 计算分贝值并按A率曲线进行加权
+			powerBuf[i] = 10 * log10f(power);
+			powerBuf[i] += _aRateWeighteds[i];
 		}
 	}
 }
@@ -448,12 +506,13 @@ static void _DataProcessTask(void const *args)
 	fftOutBuf = malloc(FFT_POINTS * sizeof(complex_t));
 	configASSERT(fftOutBuf);
 
-	powerBuf = malloc(64 * sizeof(float));
-	configASSERT(powerBuf);
+//	powerBuf = malloc(64 * sizeof(float));
+//	configASSERT(powerBuf);
+	_spectrumRes = Util_ResourceCreate(64 * sizeof(float));
 
 	while(1)
 	{
-		event = osSignalWait(_EVENT_FFT_IN_FILL, osWaitForever);
+		event = osSignalWait(EVENT_FFT_IN_FILL, osWaitForever);
 		if(event.status != osEventSignal)
 		{
 			continue;
@@ -462,22 +521,31 @@ static void _DataProcessTask(void const *args)
 		fftInBuf = Util_ResourceGet(_fftInResource, osWaitForever);
 		if(fftInBuf != NULL)
 		{
-			cr4_fft_1024_stm32(fftOutBuf, fftInBuf, FFT_POINTS);
+			FFT_FUNC(fftOutBuf, fftInBuf, FFT_POINTS);
 			Util_ResourceRelease(_fftInResource);
 
-			_FreqCollect(powerBuf, fftOutBuf);
-			_Standardization(powerBuf);
+			powerBuf = Util_ResourceGet(_spectrumRes, osWaitForever);
+			if(powerBuf != NULL)
+			{
+				_FreqCollect(powerBuf, fftOutBuf);
+				if(_IsCalibrationOn())
+				{
+					_Calibration(powerBuf);
+				}
+				else
+				{
+					_Standardization(powerBuf);
+				}
 
-			DEBUG_MSG("%.2f %.2f %.2f\n",
-					(double)(powerBuf[0]),
-					(double)(powerBuf[30]),
-					(double)(powerBuf[63]));
-		}
-		else
-		{
-			Util_ResourceRelease(_fftInResource);
+				Util_ResourceRelease(_spectrumRes);
+				osSignalSet(LedMatrix_GetDisplayThreadId(), EVENT_SPECTRUM_FILL);
+			}
 		}
 	}
 }
 
+Util_ResourceHandle_t Audio_GetSpectrumResHandle(void)
+{
+	return _spectrumRes;
+}
 

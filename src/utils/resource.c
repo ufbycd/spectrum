@@ -78,6 +78,7 @@ void * Util_ResourceGet(Util_ResourceHandle_t resource, uint32_t timeOutMs)
 	if(stat != osOK)
 	{
 		configASSERT(false);
+		Util_ResourceRelease(resource);
 		return NULL;
 	}
 

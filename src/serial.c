@@ -8,6 +8,7 @@
 #include "serial.h"
 #include "circular_buffer.h"
 #include "semphr.h"
+#include "utils.h"
 
 // XXX 目前此功能异常
 #define USE_CIRCULAR_BUFFER 1
@@ -78,13 +79,6 @@ char Serial_GetChar(void)
 	return '\0';
 }
 
-/* Determine whether we are in thread mode or handler mode. */
-static inline int _IsInHandlerMode (void)
-{
-  return __get_IPSR() != 0;
-}
-
-
 void Serial_PutChar(char c)
 {
 #if USE_SAFE_PUT_CHAR
@@ -96,7 +90,7 @@ void Serial_PutChar(char c)
 			Serial_PutChar('\r');
 		}
 #if USE_CIRCULAR_BUFFER
-		if(_IsInHandlerMode())
+		if(Util_IsInHandlerMode())
 		{
 			USART_SendData(USART1, c);
 			while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
