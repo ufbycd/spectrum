@@ -17,7 +17,6 @@
 
 // 帧频率发生是否用硬件定时器
 // 否则用软件定时器
-// XXX LED点阵屏也使用此硬件定时器
 #define HARD_WARE_TIMER_FOR_FRAME 0
 
 // 采样频率（Hz）
@@ -25,6 +24,10 @@
 
 // FFT 点数
 #define FFT_POINTS    1024
+
+// FFT 函数
+#define _FFT(out, in, point) cr4_fft_##point##_stm32(out, in, point)
+#define FFT_FUNC(out, in, point) _FFT(out, in, point)
 
 // FFT结果的频率间隔
 #define FFT_FREQ_STEP (SAMPLE_FREQ / FFT_POINTS)
@@ -42,6 +45,7 @@
 
 #define DMA_BUFFER_lEN     FFT_POINTS
 static int16_t _dmaBuf[DMA_BUFFER_lEN];
+static float _calibrationValues[64];
 
 
 
@@ -61,6 +65,8 @@ static osThreadId _sampleTid;
 static osThreadId _processTid;
 static Util_ResourceHandle_t _fftInResource;
 static Util_ResourceHandle_t _spectrumRes;
+static osTimerId _calibrationTid;
+static bool _isCalibratting;
 
 static void _AdcInit(void);
 static void _AdcGpioInit(void);
@@ -72,9 +78,14 @@ static inline void _FrameTimerStart(void);
 #endif
 static void _SampleTask(void const *args);
 static void _DataProcessTask(void const *args);
+static void _EndCalibration(void const *args);
+static void _CalibrationValueInit(void);
 
 void Audio_Init(void)
 {
+	_isCalibratting = false;
+	_CalibrationValueInit();
+
 	configASSERT(sizeof(complex_t) == sizeof(long));
 	_fftInResource = Util_ResourceCreate(FFT_POINTS * sizeof(complex_t));
 
@@ -290,6 +301,59 @@ static void _OnFrameBegin(void const *args)
 }
 #endif
 
+/**
+ * @brief 初始化校准值
+ * TODO 实现校准完成后存储校准值到Flash，当初始化时再从Flash内载入
+ */
+static void _CalibrationValueInit(void)
+{
+	int i;
+
+	for(i = 0; i < ARRAY_SIZE(_calibrationValues); i++)
+	{
+		_calibrationValues[i] = 0;
+	}
+}
+
+void Audio_SetCalibrationOn(void)
+{
+	int i;
+
+	for(i = 0; i < ARRAY_SIZE(_calibrationValues); i++)
+	{
+		_calibrationValues[i] = 0;
+	}
+
+	_isCalibratting = true;
+
+	osTimerDef(calibration, _EndCalibration);
+	_calibrationTid = osTimerCreate(osTimer(calibration), osTimerOnce, NULL);
+	osTimerStart(_calibrationTid, 5000);
+
+	DEBUG_MSG("calibration on\n");
+}
+
+static void _EndCalibration(void const *args)
+{
+	int i;
+
+	osTimerDelete(_calibrationTid);
+	_isCalibratting = false;
+
+	for(i = 0; i < ARRAY_SIZE(_calibrationValues); i++)
+	{
+		_calibrationValues[i] *= 1.5;
+	}
+
+
+	DEBUG_MSG("calibration end\n");
+}
+
+static bool _IsCalibrationOn(void)
+{
+	return _isCalibratting;
+}
+
 static void _SampleTask(void const *args)
 {
 	osEvent event;
@@ -361,12 +425,6 @@ static const float _aRateWeighteds[64] =
 
 };
 
-static const float _quantFactors[] =
-{
-	50, 30, 24, 22, 20, 15, 10, 8, 8, 8,
-	8,  8,  8,  8,  8,  8,  8,  8, 8, 8
-};
-
 static void _FreqCollect(float  *powerBuf, complex_t *fftOutBuf)
 {
 	int i, j, num, freq;
@@ -400,25 +458,29 @@ static void _FreqCollect(float  *powerBuf, complex_t *fftOutBuf)
 	}
 }
 
+static void _Calibration(float  *powerBuf)
+{
+	int i;
+	float power;
+
+	for(i = 0; i < ARRAY_SIZE(_calibrationValues); i++)
+	{
+		power = powerBuf[i];
+		if(power > _calibrationValues[i])
+		{
+			_calibrationValues[i] = power;
+		}
+	}
+}
+
 static void _Standardization(float  *powerBuf)
 {
 	int i;
-	float power, quan;
+	float power;
 
 	for(i = 0; i < 64; i++)
 	{
-		power = powerBuf[i];
-
-		// 量化
-//		if(i < 10)
-//		{
-//			quan = _quantFactors[i] * 10;
-//		}
-//		else
-//		{
-//			quan = 10 - i * 0.140625; // 按不同频率的量化因子不同来处理
-//		}
-//		power /= 1;
+		power = powerBuf[i] - _calibrationValues[i];
 
 		// 计算分贝值
 		if(power < 1.0001)
@@ -428,8 +490,8 @@ static void _Standardization(float  *powerBuf)
 		else
 		{
 			// 计算分贝值并按A率曲线进行加权
-			powerBuf[i] = 20 * log10f(power);
-//			powerBuf[i] += _aRateWeighteds[i];
+			powerBuf[i] = 10 * log10f(power);
+			powerBuf[i] += _aRateWeighteds[i];
 		}
 	}
 }
@@ -459,19 +521,22 @@ static void _DataProcessTask(void const *args)
 		fftInBuf = Util_ResourceGet(_fftInResource, osWaitForever);
 		if(fftInBuf != NULL)
 		{
-			cr4_fft_1024_stm32(fftOutBuf, fftInBuf, FFT_POINTS);
+			FFT_FUNC(fftOutBuf, fftInBuf, FFT_POINTS);
 			Util_ResourceRelease(_fftInResource);
 
 			powerBuf = Util_ResourceGet(_spectrumRes, osWaitForever);
 			if(powerBuf != NULL)
 			{
 				_FreqCollect(powerBuf, fftOutBuf);
-				_Standardization(powerBuf);
+				if(_IsCalibrationOn())
+				{
+					_Calibration(powerBuf);
+				}
+				else
+				{
+					_Standardization(powerBuf);
+				}
 
-	//			DEBUG_MSG("%.2f %.2f %.2f\n",
-	//					(double)(powerBuf[0]),
-	//					(double)(powerBuf[30]),
-	//					(double)(powerBuf[63]));
 				Util_ResourceRelease(_spectrumRes);
 				osSignalSet(LedMatrix_GetDisplayThreadId(), EVENT_SPECTRUM_FILL);
 			}

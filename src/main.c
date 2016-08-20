@@ -13,6 +13,7 @@
 #include "serial.h"
 #include "audio.h"
 #include "LedMatrix.h"
+#include "keypad.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -24,6 +25,16 @@
 // changing the definitions required in system/src/diag/trace_impl.c
 // (currently OS_USE_TRACE_ITM, OS_USE_TRACE_SEMIHOSTING_DEBUG/_STDOUT).
 //
+// FIXME 上下两屏的第一行的显示亮度比其他的低
+// TODO 实现软件校准功能来去除音频采集时的噪声
+// TODO 检测环境光强度，并据此调节适当的显示亮度
+// TODO 软件实现自动增益控制（AGC）功能
+// TODO 添加全局事件广播功能
+// TODO 添加MIC音源输入
+// TODO 根据节奏动态调节显示不同的频谱颜色
+// TODO 实现极光式的随节奏变化的动画显示
+// TODO 添加开机动画
+// TODO 实现音源无声音后开始显示个性动画，直到音源发声后才恢复频谱显示
 
 // ----- main() ---------------------------------------------------------------
 
@@ -55,6 +66,7 @@ int main(int argc, char* argv[])
 {
     _Init();
     Led_Init();
+    Keypad_Init();
     Serial_Init();
     Audio_Init();
     LedMatrix_Init();

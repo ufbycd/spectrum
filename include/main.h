@@ -23,6 +23,16 @@
 
 #define FORCE_INLINE __inline__ __attribute__((always_inline))
 
+
+#define _PORT(p, n) p
+#define _PIN(p, n)  n
+
+#define PORT(io) (_PORT io)
+#define PIN(io)  (_PIN io)
+#define IO_SET(io) PORT(io)->BSRR = PIN(io)
+#define IO_CLR(io) PORT(io)->BRR = PIN(io)
+
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define BIT_SET(reg, bit) (reg) |= (bit)
 #define BIT_CLR(reg, bit) (reg) &= ~ (bit)

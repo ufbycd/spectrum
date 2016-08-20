@@ -1051,7 +1051,7 @@ static void SetSysClockTo72(void)
                             RCC_CFGR_PLLMULL9); 
 #else    
     /*  PLL configuration: PLLCLK = HSE * 9 = 72 MHz */
-    // XXX 需要手动自动倍频数以适应不同频率的外部晶振
+    // XXX 需要手动调节倍频数以适应不同频率的外部晶振
     RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE |
                                         RCC_CFGR_PLLMULL));
     RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSE | RCC_CFGR_PLLMULL6);

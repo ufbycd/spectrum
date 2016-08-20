@@ -43,14 +43,6 @@
 #define _IO_DB2  (_DATA_PORT, GPIO_Pin_7)
 #define _IO_DG2  (_DATA_PORT, GPIO_Pin_8)
 
-#define _PORT(p, n) p
-#define _PIN(p, n)  n
-
-#define PORT(io) (_PORT io)
-#define PIN(io)  (_PIN io)
-#define IO_SET(io) PORT(io)->BSRR = PIN(io)
-#define IO_CLR(io) PORT(io)->BRR = PIN(io)
-
 #define _SET_D1_COLOR(color) BITS_SET(_DATA_PORT->ODR, 0x7 << 3, (color) << 3)
 #define _SET_D2_COLOR(color) BITS_SET(_DATA_PORT->ODR, 0x7 << 6, (color) << 6)
 
@@ -58,12 +50,12 @@
 #define _SET_D1D2_COLOR(c1, c2) BITS_SET(_DATA_PORT->ODR, 0x3f << 3, _COLOR_D1D2(c1, c2) << 3)
 
 
-typedef uint8_t color_t;
+typedef uint8_t colour_t;
 
-#define COLOR_BLACK (0x0)
-#define COLOR_RED   (0x1)
-#define COLOR_BLUE  (0x1 << 1)
-#define COLOR_GREEN (0x1 << 2)
+#define COLOUR_BLACK (0x0)
+#define COLOUR_RED   (0x1)
+#define COLOUR_BLUE  (0x1 << 1)
+#define COLOUR_GREEN (0x1 << 2)
 
 #define MATRIX_ENABLE()  IO_CLR(_IO_EN)
 #define MATRIX_DISABLE() IO_SET(_IO_EN)
@@ -76,9 +68,9 @@ static volatile uint8_t _spectrumLevels[_MATRIX_COLUMN_COUNT];
 
 static struct
 {
-	color_t base;
-	color_t top;
-}_spectrumColor;
+	colour_t base;
+	colour_t top;
+}_spectrumColour;
 
 
 static void _GpioInit(void);
@@ -250,17 +242,17 @@ void LedMatrix_SetBrightness(float level)
 	TIM2->CCR4 = ccr4;
 }
 
-void LedMatrix_SetSpectrumColor(color_t base, color_t top)
+void LedMatrix_SetSpectrumColor(colour_t base, colour_t top)
 {
-	_spectrumColor.base = base;
-	_spectrumColor.top  = top;
+	_spectrumColour.base = base;
+	_spectrumColour.top  = top;
 }
 
 void TIM1_UP_IRQHandler(void)
 {
 	unsigned int column;
 	uint8_t level;
-	color_t base;
+	colour_t baseColour;
 
     if(TIM_GetITStatus(TIM1, TIM_IT_Update))
     {
@@ -274,23 +266,23 @@ void TIM1_UP_IRQHandler(void)
     IO_CLR(_IO_LAT);
     MATRIX_SET_SCAN_LINE(_currentScanLine);
 
-    base = _spectrumColor.base;
+    baseColour = _spectrumColour.base;
     for(column = 0; column < _MATRIX_COLUMN_COUNT; column ++)
     {
     	IO_CLR(_IO_CLK);
 
-        level = _spectrumLevels[column];
+        level = _spectrumLevels[(_MATRIX_COLUMN_COUNT -1) - column];
     	if(level > (_currentScanLine + 16))
     	{
-        	_SET_D1D2_COLOR(base, base);
+        	_SET_D1D2_COLOR(baseColour, baseColour);
     	}
     	else if(level > _currentScanLine)
     	{
-    		_SET_D1D2_COLOR(base, COLOR_BLACK);
+    		_SET_D1D2_COLOR(baseColour, COLOUR_BLACK);
     	}
     	else
     	{
-    		_SET_D1D2_COLOR(COLOR_BLACK, COLOR_BLACK);
+    		_SET_D1D2_COLOR(COLOUR_BLACK, COLOUR_BLACK);
     	}
 
     	IO_SET(_IO_CLK);
@@ -308,9 +300,9 @@ void TIM1_UP_IRQHandler(void)
 static void _Test(void)
 {
 	int i, level;
-	const color_t testColors[] = {COLOR_RED, COLOR_BLUE, COLOR_GREEN, COLOR_BLACK,
-	COLOR_RED | COLOR_BLUE, COLOR_RED | COLOR_GREEN, COLOR_BLUE | COLOR_GREEN,
-	COLOR_RED | COLOR_BLUE | COLOR_GREEN};
+	const colour_t testColors[] = {COLOUR_RED, COLOUR_BLUE, COLOUR_GREEN, COLOUR_BLACK,
+	COLOUR_RED | COLOUR_BLUE, COLOUR_RED | COLOUR_GREEN, COLOUR_BLUE | COLOUR_GREEN,
+	COLOUR_RED | COLOUR_BLUE | COLOUR_GREEN};
 
 	for(i = 0; i < _MATRIX_COLUMN_COUNT; i++)
 	{
@@ -349,7 +341,7 @@ static void _AnimationTask(void const *args)
 
 //    _Test();
 	LedMatrix_SetBrightness(10);
-	LedMatrix_SetSpectrumColor(COLOR_BLUE, COLOR_RED);
+	LedMatrix_SetSpectrumColor(COLOUR_BLUE, COLOUR_RED);
 
     while(1)
     {
